@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────
+   DEFAULT CSS VARIABLE TOKENS (Dark theme defaults)
+   All values are overridden at runtime by themeStore.js
+   ───────────────────────────────────────────────────────── */
+:root {
+  /* Vibe accent tokens (from active 3D world — set by vibeStore) */
+  --vibe-bg: #090b12;
+  --vibe-accent: #a855f7;
+  --vibe-accent-rgb: 168, 85, 247;
+  --vibe-secondary: #38bdf8;
+  --vibe-secondary-rgb: 56, 189, 248;
+  --vibe-glow: rgba(168, 85, 247, 0.45);
+
+  /* ── Backgrounds & Surfaces ─── */
+  --theme-bg: #090b12;
+  --theme-bg-elevated: #10141d;
+  --theme-surface: rgba(22, 27, 38, 0.72);
+  --theme-surface-elevated: rgba(30, 38, 54, 0.85);
+
+  /* ── Glass Layers ─── */
+  --theme-glass: rgba(16, 20, 29, 0.58);
+  --theme-glass-strong: rgba(18, 23, 34, 0.86);
+  --theme-dock-bg: rgba(14, 18, 28, 0.86);
+  --theme-glass-blur: 24px;
+
+  /* ── Borders ─── */
+  --theme-border: rgba(255, 255, 255, 0.10);
+  --theme-border-hover: rgba(255, 255, 255, 0.22);
+
+  /* ── Typography ─── */
+  --theme-text: #f8fafc;
+  --theme-text-primary: #f8fafc;
+  --theme-text-secondary: #94a3b8;
+  --theme-text-muted: #64748b;
+
+  /* ── Buttons ─── */
+  --theme-btn-primary: rgba(168, 85, 247, 0.85);
+  --theme-btn-primary-text: #ffffff;
+  --theme-btn-primary-hover: rgba(168, 85, 247, 1);
+  --theme-btn-secondary: rgba(255, 255, 255, 0.07);
+  --theme-btn-secondary-text: #e2e8f0;
+  --theme-btn-secondary-hover: rgba(255, 255, 255, 0.13);
+  --theme-btn-ghost: transparent;
+  --theme-btn-ghost-text: #94a3b8;
+  --theme-btn-ghost-hover: rgba(255, 255, 255, 0.06);
+
+  /* ── Inputs ─── */
+  --theme-input: rgba(255, 255, 255, 0.05);
+  --theme-input-text: #f1f5f9;
+  --theme-input-placeholder: rgba(255, 255, 255, 0.30);
+  --theme-input-border: rgba(255, 255, 255, 0.10);
+
+  /* ── Navigation ─── */
+  --theme-nav-text: rgba(255, 255, 255, 0.95);
+  --theme-nav-active: #ffffff;
+  --theme-nav-inactive: rgba(255, 255, 255, 0.55);
+
+  /* ── Accent & Glow ─── */
+  --theme-accent: #a855f7;
+  --theme-accent-hover: #c084fc;
+  --theme-accent-text: #ffffff;
+  --theme-glow: rgba(168, 85, 247, 0.45);
+
+  /* ── Shadows & Overlay ─── */
+  --theme-shadow: rgba(0, 0, 0, 0.35);
+  --theme-shadow-strong: rgba(0, 0, 0, 0.60);
+  --theme-overlay: rgba(0, 0, 0, 0.60);
+}
+
+/* ─────────────────────────────────────────────────────────
+   BASE BODY SETUP
+   ───────────────────────────────────────────────────────── */
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--theme-bg, #090b12);
+  color: var(--theme-text-primary, #f8fafc);
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.4s ease, color 0.3s ease;
+}
+
+/* ─────────────────────────────────────────────────────────
+   THEME-AWARE SCROLLBAR
+   Light themes get a dark scrollbar, dark themes get light
+   ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border, rgba(255,255,255,0.14));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-border-hover, rgba(255,255,255,0.28));
+}
+
+/* ─────────────────────────────────────────────────────────
+   SEMANTIC GLASS UTILITIES
+   Use these classes in components instead of raw Tailwind
+   white-opacity utilities. They respond to theme tokens.
+   ───────────────────────────────────────────────────────── */
+
+/* Glass panel — the core frosted card surface */
+.glass-panel {
+  background: var(--theme-surface);
+  backdrop-filter: blur(var(--theme-glass-blur, 24px));
+  -webkit-backdrop-filter: blur(var(--theme-glass-blur, 24px));
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-primary);
+  box-shadow: 0 8px 32px 0 var(--theme-shadow), inset 0 1px 0 0 var(--theme-border);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass-panel:hover {
+  background: var(--theme-surface-elevated);
+  border-color: var(--theme-border-hover);
+  box-shadow: 0 12px 36px 0 var(--theme-shadow-strong), inset 0 1px 0 0 var(--theme-border-hover);
+}
+
+/* Glass dock — floating nav dock */
+.glass-dock {
+  background: var(--theme-dock-bg);
+  backdrop-filter: blur(var(--theme-glass-blur, 28px));
+  -webkit-backdrop-filter: blur(var(--theme-glass-blur, 28px));
+  border: 1px solid var(--theme-border);
+  box-shadow: 0 16px 40px -4px var(--theme-shadow-strong),
+              0 0 20px -2px var(--vibe-glow, rgba(168, 85, 247, 0.30)),
+              inset 0 1px 1px 0 var(--theme-border-hover);
+  transition: all 0.3s ease;
+}
+
+/* Theme-surface utility — for cards and panels */
+.theme-surface {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-primary);
+}
+
+/* Primary button */
+.theme-btn-primary {
+  background: var(--theme-btn-primary);
+  color: var(--theme-btn-primary-text);
+  border: 1px solid var(--theme-border);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+.theme-btn-primary:hover {
+  background: var(--theme-btn-primary-hover);
+  transform: scale(1.02);
+}
+.theme-btn-primary:active { transform: scale(0.98); }
+
+/* Secondary button */
+.theme-btn-secondary {
+  background: var(--theme-btn-secondary);
+  color: var(--theme-btn-secondary-text);
+  border: 1px solid var(--theme-border);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.theme-btn-secondary:hover {
+  background: var(--theme-btn-secondary-hover);
+  border-color: var(--theme-border-hover);
+  transform: scale(1.02);
+}
+.theme-btn-secondary:active { transform: scale(0.98); }
+
+/* Ghost button */
+.theme-btn-ghost {
+  background: var(--theme-btn-ghost, transparent);
+  color: var(--theme-btn-ghost-text);
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.theme-btn-ghost:hover {
+  background: var(--theme-btn-ghost-hover);
+  border-color: var(--theme-border);
+}
+
+/* Input field */
+.theme-input {
+  background: var(--theme-input);
+  color: var(--theme-input-text);
+  border: 1px solid var(--theme-input-border);
+  backdrop-filter: blur(var(--theme-glass-blur, 24px));
+  -webkit-backdrop-filter: blur(var(--theme-glass-blur, 24px));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.theme-input::placeholder { color: var(--theme-input-placeholder); }
+.theme-input:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 3px var(--theme-glow);
+}
+
+/* Navigation icon */
+.theme-nav-icon {
+  color: var(--theme-nav-inactive);
+  transition: color 0.2s ease;
+}
+.theme-nav-icon.active { color: var(--theme-nav-active); }
+.theme-nav-icon:hover { color: var(--theme-nav-text); }
+
+/* Text glow effect */
+.text-glow {
+  text-shadow: 0 0 20px var(--vibe-glow);
+}
+
+/* Subtle top-edge glass sheen (for cards) */
+.glass-sheen::before {
+  content: '';
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--theme-border-hover), transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
