@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import ThemeSelector from './components/theme/ThemeSelector';
 import AudioReactiveDebug from './components/dev/AudioReactiveDebug';
+import { useLibraryStore } from './stores/libraryStore';
 
 import VibePage from './pages/VibePage';
 
@@ -21,6 +22,7 @@ import VibePage from './pages/VibePage';
  * - '/search' (Search & Discovery)
  * - '/vibes' & '/themes' (Atmospheric Worlds Library)
  * - '/vibes/:vibeId' (Personalized Vibe Music Experience Page)
+ * - '/playlists/:playlistId' (Custom Playlist Experience Page)
  * - '/equalizer' (Acoustic Equalizer)
  * - '/library' (Saved Worlds & Playlists)
  * - '/profile' (User Profile & Preferences)
@@ -56,6 +58,15 @@ export default function App() {
     if (currentPath.startsWith('/vibes/')) {
       const vibeId = currentPath.replace('/vibes/', '').split('/')[0].split('?')[0];
       return <VibePage vibeId={vibeId} onNavigate={handleNavigate} />;
+    }
+
+    // Dynamic Playlist Route: /playlists/:playlistId
+    if (currentPath.startsWith('/playlists/')) {
+      const playlistId = currentPath.replace('/playlists/', '').split('/')[0].split('?')[0];
+      if (playlistId) {
+        useLibraryStore.getState().setActivePlaylistId(playlistId);
+      }
+      return <LibraryPage onNavigate={handleNavigate} />;
     }
 
     switch (currentPath) {

@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/common/GlassCard';
 import GlassBadge from '../components/common/GlassBadge';
 import GlassButton from '../components/common/GlassButton';
+import AddToPlaylistModal from '../components/common/AddToPlaylistModal';
 import { useVibeStore } from '../stores/vibeStore';
 import { useAudioStore } from '../stores/audioStore';
+import { useLibraryStore } from '../stores/libraryStore';
 import { VIBES } from '../config/vibes';
 import { getTracksForVibe, getRecommendedTracks, formatDuration } from '../data/tracks';
 import { 
@@ -14,14 +16,16 @@ import {
   Music, 
   Clock, 
   Sparkles, 
-  Activity,
-  Radio,
-  Volume2,
-  Heart,
-  Plus,
-  Check,
-  ListMusic,
-  Compass
+  Activity, 
+  Radio, 
+  Volume2, 
+  Heart, 
+  Plus, 
+  Check, 
+  ListMusic, 
+  Compass, 
+  Bookmark, 
+  FolderPlus 
 } from 'lucide-react';
 
 /**
@@ -33,9 +37,15 @@ import {
  * queue info, and recommended tracks.
  */
 export default function VibePage({ vibeId, onNavigate }) {
+  const [selectedTrackForPlaylist, setSelectedTrackForPlaylist] = useState(null);
+
   // 1. Resolve active vibe configuration
   const vibe = VIBES[vibeId] || Object.values(VIBES)[0];
   const setVibe = useVibeStore((state) => state.setVibe);
+
+  // Library store: saved vibes
+  const isVibeSaved = useLibraryStore((state) => state.isVibeSaved(vibe.id));
+  const toggleSaveVibe = useLibraryStore((state) => state.toggleSaveVibe);
 
   // 2. Audio store state & actions
   const currentTrack = useAudioStore((state) => state.currentTrack);
@@ -207,6 +217,21 @@ export default function VibePage({ vibeId, onNavigate }) {
               >
                 SHUFFLE
               </GlassButton>
+
+              <GlassButton
+                variant="secondary"
+                size="lg"
+                icon={Bookmark}
+                onClick={() => toggleSaveVibe(vibe.id)}
+                className="px-4"
+                style={{
+                  color: isVibeSaved ? vibe.colors.primary : undefined,
+                  borderColor: isVibeSaved ? `${vibe.colors.primary}80` : undefined,
+                }}
+                title={isVibeSaved ? 'Remove from Saved Vibes' : 'Save to Library Vault'}
+              >
+                {isVibeSaved ? 'SAVED WORLD' : 'SAVE VIBE'}
+              </GlassButton>
             </div>
           </div>
         </div>
@@ -345,11 +370,23 @@ export default function VibePage({ vibeId, onNavigate }) {
                       e.stopPropagation();
                       addToQueue(track);
                     }}
-                    className="p-2 rounded-xl hover:bg-white/10 transition-all active:scale-95 text-xs hidden sm:inline-flex"
+                    className="p-2 rounded-xl hover:bg-white/10 transition-all active:scale-95 text-xs hidden sm:inline-flex cursor-pointer"
                     style={{ color: 'var(--theme-text-muted)' }}
                     title="Add to Up Next Queue"
                   >
                     <Plus className="w-4 h-4" />
+                  </button>
+
+                  {/* Add to Playlist Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedTrackForPlaylist(track);
+                    }}
+                    className="p-2 rounded-xl hover:bg-white/10 transition-all active:scale-95 text-xs text-white/50 hover:text-white cursor-pointer"
+                    title="Add to Playlist"
+                  >
+                    <FolderPlus className="w-4 h-4" />
                   </button>
 
                   {track.genres && track.genres[0] && (
@@ -481,6 +518,15 @@ export default function VibePage({ vibeId, onNavigate }) {
             })}
           </div>
         </div>
+      )}
+
+      {/* Add To Playlist Modal */}
+      {selectedTrackForPlaylist && (
+        <AddToPlaylistModal
+          track={selectedTrackForPlaylist}
+          isOpen={Boolean(selectedTrackForPlaylist)}
+          onClose={() => setSelectedTrackForPlaylist(null)}
+        />
       )}
     </div>
   );

@@ -207,9 +207,9 @@ export default function MiniPlayer({ onNavigate }) {
           backgroundColor: 'var(--theme-player-background, var(--theme-dock-bg))',
           backdropFilter: 'blur(var(--theme-glass-blur, 28px))',
           WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 28px))',
-          border: '1px solid var(--theme-player-border, var(--theme-border))',
+          border: '1px solid var(--theme-glass-border, var(--theme-player-border, var(--theme-border)))',
           color: 'var(--theme-player-text, var(--theme-text-primary))',
-          boxShadow: `0 16px 40px -4px var(--theme-shadow-strong), 0 0 24px -2px ${activeVibe.colors.glow || 'rgba(168, 85, 247, 0.3)'}`,
+          boxShadow: `0 16px 40px -4px var(--theme-shadow-strong), 0 0 24px -2px ${activeVibe.colors.glow || 'rgba(168, 85, 247, 0.3)'}, inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)`,
         }}
       >
         {/* ─── DESKTOP & TABLET LAYOUT (>= md) ─── */}

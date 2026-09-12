@@ -33,6 +33,7 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
           backdropFilter: 'blur(var(--theme-glass-blur, 24px))',
           WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
           border: '1px solid var(--theme-glass-border, var(--theme-border))',
+          boxShadow: '0 8px 24px -4px var(--theme-shadow-strong), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)',
         }}
         title="Mimicu Home"
       >
@@ -76,6 +77,7 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
             WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
             border: '1px solid var(--theme-glass-border, var(--theme-border))',
             color: 'var(--theme-text-primary)',
+            boxShadow: '0 8px 24px -4px var(--theme-shadow-strong), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--theme-border-hover)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--theme-border)'; }}
@@ -98,7 +100,9 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
             border: isEqActive 
               ? `1px solid ${activeVibe.colors.primary}` 
               : '1px solid var(--theme-glass-border, var(--theme-border))',
-            boxShadow: isEqActive ? `0 0 16px ${activeVibe.colors.glow}` : undefined,
+            boxShadow: isEqActive 
+              ? `0 0 16px ${activeVibe.colors.glow}, inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)` 
+              : '0 8px 24px -4px var(--theme-shadow-strong), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)',
             color: isEqActive ? activeVibe.colors.primary : 'var(--theme-text-primary)',
           }}
           onMouseEnter={(e) => { 
@@ -123,7 +127,9 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
             border: isProfileActive 
               ? `1px solid ${activeVibe.colors.primary}` 
               : '1px solid var(--theme-glass-border, var(--theme-border))',
-            boxShadow: isProfileActive ? `0 0 16px ${activeVibe.colors.glow}` : undefined,
+            boxShadow: isProfileActive 
+              ? `0 0 16px ${activeVibe.colors.glow}, inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)` 
+              : '0 8px 24px -4px var(--theme-shadow-strong), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)',
             color: isProfileActive ? activeVibe.colors.primary : 'var(--theme-text-primary)',
           }}
           onMouseEnter={(e) => { 

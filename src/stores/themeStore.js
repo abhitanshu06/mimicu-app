@@ -67,6 +67,11 @@ function applyThemeToDOM(theme) {
   root.style.setProperty('--theme-glass-border', t.glassBorder);
   root.style.setProperty('--theme-glass-blur', t.glassBlur);
   root.style.setProperty('--theme-glass-opacity', t.glassOpacity);
+  root.style.setProperty('--theme-glass-highlight', t.glassHighlight || 'transparent');
+  root.style.setProperty('--theme-glass-sidebar', t.navigation || t.surface);
+  root.style.setProperty('--theme-glass-player', t.playerBackground);
+  root.style.setProperty('--theme-glass-card', t.card || t.surface);
+  root.style.setProperty('--theme-glass-modal', t.modalBackground);
 
   // ── Borders ────────────────────────────────────────────────────
   root.style.setProperty('--theme-border', t.border);

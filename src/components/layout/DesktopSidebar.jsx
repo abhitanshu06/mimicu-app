@@ -107,11 +107,11 @@ export default function DesktopSidebar({ currentPath = '/', onNavigate }) {
       aria-label="Desktop Primary Navigation"
       className="hidden md:flex flex-col fixed left-3 lg:left-5 top-3 lg:top-5 bottom-3 lg:bottom-5 z-40 w-56 lg:w-60 rounded-3xl select-none transition-all duration-300 pointer-events-auto shadow-2xl justify-between"
       style={{
-        backgroundColor: 'var(--theme-glass-strong)',
+        backgroundColor: 'var(--theme-glass-sidebar, var(--theme-glass-strong))',
         backdropFilter: 'blur(var(--theme-glass-blur, 28px))',
         WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 28px))',
         border: '1px solid var(--theme-glass-border, var(--theme-border))',
-        boxShadow: `0 20px 50px -12px var(--theme-shadow-strong), 0 0 32px -4px ${activeVibe.colors.glow || 'rgba(168, 85, 247, 0.25)'}`,
+        boxShadow: `0 20px 50px -12px var(--theme-shadow-strong), 0 0 32px -4px ${activeVibe.colors.glow || 'rgba(168, 85, 247, 0.25)'}, inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)`,
       }}
     >
       <div>

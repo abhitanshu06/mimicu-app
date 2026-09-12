@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import GlassCard from '../components/common/GlassCard';
 import GlassBadge from '../components/common/GlassBadge';
 import { useVibeStore } from '../stores/vibeStore';
+import { useLibraryStore } from '../stores/libraryStore';
 import { VIBE_LIST, VIBE_CATEGORIES } from '../config/vibes';
-import { Sparkles, Compass, CheckCircle2, Music2, Play } from 'lucide-react';
+import { Sparkles, Compass, CheckCircle2, Music2, Play, Bookmark } from 'lucide-react';
 
 /**
  * VibesPage
@@ -22,6 +23,9 @@ export default function VibesPage({ onNavigate }) {
   const targetVibe = useVibeStore((state) => state.targetVibe);
   const isTransitioning = useVibeStore((state) => state.isTransitioning);
   const setVibe = useVibeStore((state) => state.setVibe);
+
+  const savedVibeIds = useLibraryStore((state) => state.savedVibeIds);
+  const toggleSaveVibe = useLibraryStore((state) => state.toggleSaveVibe);
 
   const currentSelectionId = isTransitioning ? targetVibe.id : activeVibe.id;
 
@@ -140,23 +144,40 @@ export default function VibesPage({ onNavigate }) {
                     </div>
                   </div>
 
-                  {isActive ? (
-                    <GlassBadge 
-                      variant="glow" 
-                      className="text-[10px] px-2 py-0.5 gap-1 shrink-0"
-                      style={{
-                        borderColor: `${vibe.colors.primary}80`,
-                        boxShadow: `0 0 10px ${vibe.colors.glow}`,
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSaveVibe(vibe.id);
                       }}
+                      className="p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+                      style={{
+                        color: savedVibeIds.includes(vibe.id) ? vibe.colors.primary : 'var(--theme-text-muted)',
+                      }}
+                      title={savedVibeIds.includes(vibe.id) ? 'Remove from Saved' : 'Save Vibe'}
                     >
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      <span>Active</span>
-                    </GlassBadge>
-                  ) : (
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/10">
-                      <Play className="w-3.5 h-3.5 ml-0.5 text-white" />
-                    </div>
-                  )}
+                      <Bookmark className={`w-4 h-4 ${savedVibeIds.includes(vibe.id) ? 'fill-current' : ''}`} />
+                    </button>
+
+                    {isActive ? (
+                      <GlassBadge 
+                        variant="glow" 
+                        className="text-[10px] px-2 py-0.5 gap-1 shrink-0"
+                        style={{
+                          borderColor: `${vibe.colors.primary}80`,
+                          boxShadow: `0 0 10px ${vibe.colors.glow}`,
+                        }}
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                        <span>Active</span>
+                      </GlassBadge>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/10">
+                        <Play className="w-3.5 h-3.5 ml-0.5 text-white" />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Atmospheric Description */}

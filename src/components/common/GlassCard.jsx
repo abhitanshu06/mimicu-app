@@ -32,7 +32,7 @@ export default function GlassCard({
       style={{
         backgroundColor: active
           ? 'var(--theme-surface-elevated)'
-          : 'var(--theme-surface)',
+          : 'var(--theme-glass-card, var(--theme-card, var(--theme-surface)))',
         backdropFilter: 'blur(var(--theme-glass-blur, 24px))',
         WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
         borderColor: active
@@ -42,10 +42,10 @@ export default function GlassCard({
         borderStyle: 'solid',
         color: 'var(--theme-text-primary)',
         boxShadow: active
-          ? `0 12px 36px 0 var(--theme-shadow-strong), 0 0 20px var(--vibe-glow, rgba(168,85,247,0.35))`
+          ? `0 12px 36px 0 var(--theme-shadow-strong), 0 0 20px var(--vibe-glow, rgba(168,85,247,0.35)), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)`
           : glow
-          ? `0 8px 32px 0 var(--theme-shadow), 0 0 16px var(--vibe-glow, rgba(168,85,247,0.20))`
-          : `0 8px 32px 0 var(--theme-shadow)`,
+          ? `0 8px 32px 0 var(--theme-shadow), 0 0 16px var(--vibe-glow, rgba(168,85,247,0.20)), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)`
+          : `0 8px 32px 0 var(--theme-shadow), inset 0 1px 1px 0 var(--theme-glass-highlight, transparent)`,
         ...style,
       }}
       {...props}
