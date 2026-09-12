@@ -79,15 +79,17 @@ export default function App() {
   };
 
   return (
-    <AppShell 
-      currentPath={currentPath} 
-      onNavigate={handleNavigate}
-    >
-      {renderCurrentPage()}
-      {/* Global Application Theme Selector Modal */}
+    <>
+      <AppShell 
+        currentPath={currentPath} 
+        onNavigate={handleNavigate}
+      >
+        {renderCurrentPage()}
+        {/* Dev-only Audio-Reactive Debug HUD */}
+        <AudioReactiveDebug />
+      </AppShell>
+      {/* Global Application Theme Selector Modal (Portals to body, z-[990]/z-[1000]) */}
       <ThemeSelector />
-      {/* Dev-only Audio-Reactive Debug HUD */}
-      <AudioReactiveDebug />
-    </AppShell>
+    </>
   );
 }

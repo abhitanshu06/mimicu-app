@@ -115,14 +115,14 @@ export default function SettingsPage({ onNavigate }) {
             <div className="flex items-center gap-3">
               <div 
                 className="w-5 h-5 rounded-full shadow-sm"
-                style={{ backgroundColor: activeTheme.accent, border: '2px solid rgba(255,255,255,0.2)' }}
+                style={{ backgroundColor: activeTheme?.tokens?.accent || 'var(--theme-accent)', border: '2px solid rgba(255,255,255,0.2)' }}
               />
               <div>
                 <span className="text-sm font-semibold block" style={{ color: 'var(--theme-text-primary)' }}>
-                  {activeTheme.name}
+                  {activeTheme?.name || 'Active Theme'}
                 </span>
-                <span className="text-[11px] capitalize" style={{ color: 'var(--theme-text-muted)' }}>
-                  {activeTheme.type} Theme • {activeTheme.description}
+                <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+                  {activeTheme?.family} • {activeTheme?.mode?.toUpperCase()} • {activeTheme?.style?.toUpperCase()} — {activeTheme?.tagline}
                 </span>
               </div>
             </div>

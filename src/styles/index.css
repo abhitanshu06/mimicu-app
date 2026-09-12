@@ -16,59 +16,85 @@
   --vibe-glow: rgba(168, 85, 247, 0.45);
 
   /* ── Backgrounds & Surfaces ─── */
-  --theme-bg: #090b12;
-  --theme-bg-elevated: #10141d;
-  --theme-surface: rgba(22, 27, 38, 0.72);
-  --theme-surface-elevated: rgba(30, 38, 54, 0.85);
+  --theme-background: #282a36;
+  --theme-background-secondary: #21222c;
+  --theme-bg: #282a36;
+  --theme-bg-elevated: #21222c;
+  --theme-surface: #343746;
+  --theme-surface-elevated: #44475a;
+  --theme-surface-hover: #4d5166;
 
   /* ── Glass Layers ─── */
-  --theme-glass: rgba(16, 20, 29, 0.58);
-  --theme-glass-strong: rgba(18, 23, 34, 0.86);
-  --theme-dock-bg: rgba(14, 18, 28, 0.86);
-  --theme-glass-blur: 24px;
+  --theme-glass: rgba(40, 42, 54, 0.92);
+  --theme-glass-strong: rgba(33, 34, 44, 0.96);
+  --theme-glass-border: rgba(98, 114, 164, 0.40);
+  --theme-dock-bg: #21222c;
+  --theme-glass-blur: 8px;
 
   /* ── Borders ─── */
-  --theme-border: rgba(255, 255, 255, 0.10);
-  --theme-border-hover: rgba(255, 255, 255, 0.22);
+  --theme-border: rgba(98, 114, 164, 0.35);
+  --theme-border-strong: rgba(189, 147, 249, 0.60);
+  --theme-border-hover: rgba(189, 147, 249, 0.60);
 
-  /* ── Typography ─── */
-  --theme-text: #f8fafc;
-  --theme-text-primary: #f8fafc;
-  --theme-text-secondary: #94a3b8;
-  --theme-text-muted: #64748b;
+  /* ── Typography & Icons ─── */
+  --theme-text: #f8f8f2;
+  --theme-text-primary: #f8f8f2;
+  --theme-text-secondary: #bfbfbf;
+  --theme-text-muted: #6272a4;
+  --theme-icon-primary: #f8f8f2;
+  --theme-icon-secondary: #bd93f9;
 
   /* ── Buttons ─── */
-  --theme-btn-primary: rgba(168, 85, 247, 0.85);
-  --theme-btn-primary-text: #ffffff;
-  --theme-btn-primary-hover: rgba(168, 85, 247, 1);
-  --theme-btn-secondary: rgba(255, 255, 255, 0.07);
-  --theme-btn-secondary-text: #e2e8f0;
-  --theme-btn-secondary-hover: rgba(255, 255, 255, 0.13);
+  --theme-button-primary: #bd93f9;
+  --theme-btn-primary: #bd93f9;
+  --theme-button-primary-text: #282a36;
+  --theme-btn-primary-text: #282a36;
+  --theme-button-primary-hover: #ff79c6;
+  --theme-btn-primary-hover: #ff79c6;
+  --theme-button-secondary: rgba(68, 71, 90, 0.85);
+  --theme-btn-secondary: rgba(68, 71, 90, 0.85);
+  --theme-button-secondary-text: #f8f8f2;
+  --theme-btn-secondary-text: #f8f8f2;
+  --theme-button-secondary-hover: rgba(98, 114, 164, 0.50);
+  --theme-btn-secondary-hover: rgba(98, 114, 164, 0.50);
   --theme-btn-ghost: transparent;
-  --theme-btn-ghost-text: #94a3b8;
-  --theme-btn-ghost-hover: rgba(255, 255, 255, 0.06);
+  --theme-btn-ghost-text: #bfbfbf;
+  --theme-btn-ghost-hover: rgba(68, 71, 90, 0.50);
 
   /* ── Inputs ─── */
-  --theme-input: rgba(255, 255, 255, 0.05);
-  --theme-input-text: #f1f5f9;
-  --theme-input-placeholder: rgba(255, 255, 255, 0.30);
-  --theme-input-border: rgba(255, 255, 255, 0.10);
+  --theme-input: #21222c;
+  --theme-input-text: #f8f8f2;
+  --theme-input-placeholder: #6272a4;
+  --theme-input-border: rgba(98, 114, 164, 0.40);
 
   /* ── Navigation ─── */
-  --theme-nav-text: rgba(255, 255, 255, 0.95);
-  --theme-nav-active: #ffffff;
-  --theme-nav-inactive: rgba(255, 255, 255, 0.55);
+  --theme-navigation: #21222c;
+  --theme-navigation-text: #bfbfbf;
+  --theme-nav-text: #bfbfbf;
+  --theme-navigation-active: #f8f8f2;
+  --theme-nav-active: #f8f8f2;
+  --theme-navigation-inactive: #6272a4;
+  --theme-nav-inactive: #6272a4;
+
+  /* ── Player ─── */
+  --theme-player-background: #1e1f29;
+  --theme-player-bg: #1e1f29;
+  --theme-player-border: rgba(189, 147, 249, 0.35);
+  --theme-player-text: #f8f8f2;
 
   /* ── Accent & Glow ─── */
-  --theme-accent: #a855f7;
-  --theme-accent-hover: #c084fc;
-  --theme-accent-text: #ffffff;
-  --theme-glow: rgba(168, 85, 247, 0.45);
+  --theme-accent: #bd93f9;
+  --theme-accent-hover: #ff79c6;
+  --theme-accent-text: #282a36;
+  --theme-accent-glow: rgba(189, 147, 249, 0.45);
+  --theme-glow: rgba(189, 147, 249, 0.45);
 
-  /* ── Shadows & Overlay ─── */
-  --theme-shadow: rgba(0, 0, 0, 0.35);
-  --theme-shadow-strong: rgba(0, 0, 0, 0.60);
-  --theme-overlay: rgba(0, 0, 0, 0.60);
+  /* ── Shadows, Focus & Overlay ─── */
+  --theme-shadow: rgba(0, 0, 0, 0.38);
+  --theme-shadow-strong: rgba(0, 0, 0, 0.65);
+  --theme-focus-ring: #bd93f9;
+  --theme-overlay: rgba(20, 21, 28, 0.75);
+  --theme-overlay-bg: rgba(20, 21, 28, 0.75);
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -110,9 +136,9 @@ html, body {
   background: var(--theme-surface);
   backdrop-filter: blur(var(--theme-glass-blur, 24px));
   -webkit-backdrop-filter: blur(var(--theme-glass-blur, 24px));
-  border: 1px solid var(--theme-border);
+  border: 1px solid var(--theme-glass-border, var(--theme-border));
   color: var(--theme-text-primary);
-  box-shadow: 0 8px 32px 0 var(--theme-shadow), inset 0 1px 0 0 var(--theme-border);
+  box-shadow: 0 8px 32px 0 var(--theme-shadow), inset 0 1px 0 0 var(--theme-glass-border, var(--theme-border));
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -220,3 +246,56 @@ html, body {
   border-radius: inherit;
   pointer-events: none;
 }
+
+/* ─────────────────────────────────────────────────────────
+   STRICT SOLID THEME ENFORCEMENT
+   When a solid theme is active:
+   - Backdrop blur is completely eliminated (0px / none)
+   - Translucency is removed; surfaces are 100% opaque
+   - Glass sheen lines are disabled
+   - Shadows are controlled and crisp
+   ───────────────────────────────────────────────────────── */
+[data-theme-type="solid"],
+[data-theme-style="solid"],
+[data-theme-category="solid"] {
+  --theme-glass-blur: 0px !important;
+}
+
+[data-theme-type="solid"] .glass-panel,
+[data-theme-type="solid"] .glass-dock,
+[data-theme-type="solid"] aside,
+[data-theme-type="solid"] header > div,
+[data-theme-type="solid"] nav,
+[data-theme-type="solid"] .theme-surface,
+[data-theme-type="solid"] [style*="backdrop-filter"],
+[data-theme-type="solid"] [style*="backdropFilter"],
+[data-theme-style="solid"] .glass-panel,
+[data-theme-style="solid"] .glass-dock,
+[data-theme-style="solid"] aside,
+[data-theme-style="solid"] header > div,
+[data-theme-style="solid"] nav,
+[data-theme-style="solid"] .theme-surface,
+[data-theme-style="solid"] [style*="backdrop-filter"],
+[data-theme-style="solid"] [style*="backdropFilter"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme-type="solid"] .glass-sheen::before,
+[data-theme-style="solid"] .glass-sheen::before {
+  display: none !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   STRICT GLASS THEME ENFORCEMENT
+   When a glass theme is active:
+   - Strong backdrop blur is applied
+   - Real layered translucency letting the 3D scene shine through
+   - Controlled ambient glows
+   ───────────────────────────────────────────────────────── */
+[data-theme-type="glass"],
+[data-theme-style="glass"],
+[data-theme-category="glass"] {
+  --theme-glass-blur: 30px;
+}
+

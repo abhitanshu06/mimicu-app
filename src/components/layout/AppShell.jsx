@@ -49,7 +49,7 @@ export default function AppShell({
       />
 
       {/* 4. Main Content Container with responsive sidebar and player offsets */}
-      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 md:pl-64 lg:pl-72 pt-20 pb-44 sm:pb-48 md:pb-28 flex flex-col transition-all duration-300">
+      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 md:pl-64 lg:pl-72 pt-20 pb-48 sm:pb-52 md:pb-36 lg:pb-40 flex flex-col transition-all duration-300">
         {children}
       </main>
 

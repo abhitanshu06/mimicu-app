@@ -23,12 +23,122 @@ import {
 } from 'lucide-react';
 
 /**
- * FullPlayer
- * 
- * Expandable immersive full-screen player modal.
- * Features large rotating vinyl artwork, animated ambient glow,
- * interactive queue sheet, equalizer routing, and full scrubber controls.
+ * FullPlayerScrubber
+ *
+ * Isolated sub-component that owns the 4x/second progress subscriptions.
+ * Prevents the entire FullPlayer (album art, buttons, queue) from re-rendering
+ * on every timeupdate tick. Only this small scrubber + time display re-renders.
  */
+function FullPlayerScrubber({ activeVibe }) {
+  const progress = useAudioStore((state) => state.progress);
+  const currentTime = useAudioStore((state) => state.currentTime);
+  const duration = useAudioStore((state) => state.duration || 0);
+  const seek = useAudioStore((state) => state.seek);
+
+  const scrubberRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState(0);
+  const dragProgressRef = useRef(0);
+  const isDraggingRef = useRef(false);
+
+  const calcProgress = (clientX) => {
+    if (!scrubberRef.current) return 0;
+    const rect = scrubberRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  };
+
+  const handlePointerDown = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newProgress = calcProgress(e.clientX);
+    dragProgressRef.current = newProgress;
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    setDragProgress(newProgress);
+
+    const onPointerMove = (ev) => {
+      if (!isDraggingRef.current) return;
+      const nextProgress = calcProgress(ev.clientX);
+      dragProgressRef.current = nextProgress;
+      setDragProgress(nextProgress);
+    };
+
+    const onPointerEnd = (ev) => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      const finalProgress = calcProgress(ev.clientX);
+      seek(finalProgress);
+      setIsDragging(false);
+
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerEnd);
+      window.removeEventListener('pointercancel', onPointerEnd);
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerEnd);
+    window.addEventListener('pointercancel', onPointerEnd);
+  };
+
+  const activeProgress = isDragging ? dragProgress : (progress || 0);
+  const currentPercent = Math.max(0, Math.min(100, activeProgress * 100));
+
+  const displayedTime = isDragging
+    ? Math.round(activeProgress * duration)
+    : currentTime;
+
+  return (
+    <div className="w-full mb-6 select-none">
+      <div
+        ref={scrubberRef}
+        onPointerDown={handlePointerDown}
+        className="w-full h-6 rounded-full cursor-pointer relative group flex items-center touch-none"
+        role="slider"
+        aria-label="Track progress"
+        aria-valuenow={Math.round(currentPercent)}
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <div
+          className="w-full h-2 sm:h-2.5 rounded-full overflow-hidden"
+          style={{
+            backgroundColor: 'var(--theme-border, rgba(128, 128, 128, 0.3))',
+          }}
+        >
+          <div
+            className="h-full rounded-full relative"
+            style={{
+              width: `${currentPercent}%`,
+              backgroundColor: activeVibe.colors.primary,
+              boxShadow: `0 0 14px ${activeVibe.colors.primary}`,
+              transition: isDragging ? 'none' : 'width 100ms linear',
+            }}
+          />
+        </div>
+        {/* Scrubber thumb */}
+        <div
+          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-md pointer-events-none ${
+            isDragging ? 'scale-125' : 'group-hover:scale-110'
+          }`}
+          style={{
+            left: `${currentPercent}%`,
+            border: `2px solid ${activeVibe.colors.primary}`,
+            transition: isDragging ? 'none' : 'left 100ms linear, transform 100ms ease',
+          }}
+        />
+      </div>
+
+      {/* Time Indicators */}
+      <div className="flex items-center justify-between text-xs font-mono text-white/50 mt-2">
+        <span>{formatDuration(displayedTime)}</span>
+        <span>{formatDuration(duration)}</span>
+      </div>
+    </div>
+  );
+}
 export default function FullPlayer({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('player'); // 'player' | 'queue'
 
@@ -37,9 +147,8 @@ export default function FullPlayer({ onNavigate }) {
 
   const currentTrack = useAudioStore((state) => state.currentTrack);
   const isPlaying = useAudioStore((state) => state.playing);
-  const progress = useAudioStore((state) => state.progress);
-  const currentTime = useAudioStore((state) => state.currentTime);
-  const duration = useAudioStore((state) => state.duration);
+  // Note: progress/currentTime/duration/seek are owned by FullPlayerScrubber below.
+  // Isolates the 4x/second timeupdate re-renders away from this large component tree.
   const volume = useAudioStore((state) => state.volume);
   const isMuted = useAudioStore((state) => state.muted);
   const queue = useAudioStore((state) => state.queue);
@@ -51,7 +160,6 @@ export default function FullPlayer({ onNavigate }) {
   const togglePlay = useAudioStore((state) => state.togglePlay);
   const next = useAudioStore((state) => state.next);
   const previous = useAudioStore((state) => state.previous);
-  const seek = useAudioStore((state) => state.seek);
   const setVolume = useAudioStore((state) => state.setVolume);
   const toggleMute = useAudioStore((state) => state.toggleMute);
   const toggleShuffle = useAudioStore((state) => state.toggleShuffle);
@@ -64,14 +172,6 @@ export default function FullPlayer({ onNavigate }) {
   const scrubberRef = useRef(null);
 
   if (!isFullPlayerOpen || !currentTrack) return null;
-
-  const handleScrubberClick = (e) => {
-    if (!scrubberRef.current) return;
-    const rect = scrubberRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const newProgress = Math.max(0, Math.min(1, clickX / rect.width));
-    seek(newProgress);
-  };
 
   const handleVibeClick = () => {
     if (currentVibeContext?.page && onNavigate) {
@@ -173,37 +273,29 @@ export default function FullPlayer({ onNavigate }) {
         {activeTab === 'player' ? (
           /* --- TAB 1: NOW PLAYING HERO --- */
           <div className="flex flex-col items-center text-center w-full animate-fadeIn">
-            {/* Massive Album Cover / Vinyl Disc */}
-            <div className="relative mb-8 group">
+            {/* Premium Static Album Cover */}
+            <div className="relative mb-8 group select-none">
               {/* Outer Glow Halo */}
               <div
-                className="absolute inset-0 rounded-full blur-2xl opacity-60 transition-all duration-700"
+                className="absolute inset-0 rounded-3xl blur-2xl opacity-50 transition-all duration-700"
                 style={{
                   backgroundColor: activeVibe.colors.primary,
-                  transform: isPlaying ? 'scale(1.06)' : 'scale(0.95)',
+                  transform: isPlaying ? 'scale(1.04)' : 'scale(0.96)',
                 }}
               />
 
-              {/* Album Art Container */}
+              {/* Album Art Container — Static, No Rotation */}
               <div
-                className={`
-                  w-60 h-60 sm:w-72 sm:h-72 rounded-3xl sm:rounded-full relative overflow-hidden flex items-center justify-center shadow-2xl border-2 border-white/20
-                  ${isPlaying ? 'animate-[spin_18s_linear_infinite]' : ''}
-                `}
+                className="w-60 h-60 sm:w-72 sm:h-72 rounded-3xl relative overflow-hidden flex items-center justify-center shadow-2xl border border-white/20 aspect-square transition-transform duration-500"
                 style={{
                   background: currentTrack.coverArtUrl,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
                   boxShadow: `0 24px 64px -12px rgba(0, 0, 0, 0.7), 0 0 36px ${activeVibe.colors.glow}`,
+                  transform: isPlaying ? 'scale(1.02)' : 'scale(1.0)',
                 }}
               >
-                {/* Vinyl Grooves Texture Rings */}
-                <div className="absolute inset-4 rounded-full border border-white/10 pointer-events-none" />
-                <div className="absolute inset-10 rounded-full border border-white/10 pointer-events-none" />
-                <div className="absolute inset-16 rounded-full border border-white/10 pointer-events-none" />
-
-                {/* Center Vinyl Center Hole */}
-                <div className="w-14 h-14 rounded-full bg-black/80 border-2 border-white/30 flex items-center justify-center shadow-inner">
-                  <Disc3 className="w-6 h-6 text-white/80" />
-                </div>
+                <Music className="w-12 h-12 text-white/50" />
               </div>
             </div>
 
@@ -250,29 +342,8 @@ export default function FullPlayer({ onNavigate }) {
               </span>
             </div>
 
-            {/* Full Scrubber Progress Bar */}
-            <div className="w-full mb-6">
-              <div
-                ref={scrubberRef}
-                onClick={handleScrubberClick}
-                className="w-full h-2 sm:h-2.5 bg-white/10 rounded-full cursor-pointer relative group overflow-hidden"
-              >
-                <div
-                  className="h-full rounded-full transition-all duration-100 relative"
-                  style={{
-                    width: `${(progress || 0) * 100}%`,
-                    backgroundColor: activeVibe.colors.primary,
-                    boxShadow: `0 0 14px ${activeVibe.colors.primary}`,
-                  }}
-                />
-              </div>
-
-              {/* Time Indicators */}
-              <div className="flex items-center justify-between text-xs font-mono text-white/50 mt-2">
-                <span>{formatDuration(currentTime)}</span>
-                <span>{formatDuration(duration)}</span>
-              </div>
-            </div>
+            {/* Full Scrubber — isolated sub-component to avoid re-rendering entire FullPlayer on timeupdate */}
+            <FullPlayerScrubber activeVibe={activeVibe} />
 
             {/* Large Full Transport Controls */}
             <div className="flex items-center justify-center gap-6 sm:gap-8 mb-6">

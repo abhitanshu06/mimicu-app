@@ -51,10 +51,15 @@ export const ENVIRONMENT_THEMES = {
 };
 
 /**
- * Helper to resolve environment theme settings based on theme object or type string
+ * Helper to resolve environment theme settings based on theme object, mode, or type string
  */
-export function getEnvironmentTheme(themeType = 'dark') {
-  if (themeType === 'light') return ENVIRONMENT_THEMES.light;
-  if (themeType === 'amoled') return ENVIRONMENT_THEMES.amoled;
+export function getEnvironmentTheme(themeOrType = 'dark') {
+  if (typeof themeOrType === 'object' && themeOrType !== null) {
+    if (themeOrType.id === 'amoled') return ENVIRONMENT_THEMES.amoled;
+    if (themeOrType.mode === 'light' || themeOrType.type === 'light') return ENVIRONMENT_THEMES.light;
+    return ENVIRONMENT_THEMES.dark;
+  }
+  if (themeOrType === 'light') return ENVIRONMENT_THEMES.light;
+  if (themeOrType === 'amoled') return ENVIRONMENT_THEMES.amoled;
   return ENVIRONMENT_THEMES.dark;
 }

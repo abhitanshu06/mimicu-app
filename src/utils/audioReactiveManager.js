@@ -111,12 +111,15 @@ class AudioReactiveManager {
     // Safety clamp delta against tab background pauses
     const dt = Math.min(delta, 0.1);
 
-    // 1. Resolve active vibe and its specific profile
+    // 1. Resolve active vibe — skip profile lookup if vibeId hasn't changed (runs 60x/sec)
     const activeVibe = useVibeStore.getState().targetVibe || useVibeStore.getState().activeVibe;
     const vibeId = activeVibe?.id || '3-am-night-walk';
-    const profile = getAudioReactiveProfile(vibeId);
-    this.current.profile = profile;
-    this.current.vibeId = vibeId;
+
+    if (vibeId !== this.current.vibeId) {
+      // Vibe changed — update profile. Only runs on actual Vibe switches, not every frame.
+      this.current.profile = getAudioReactiveProfile(vibeId);
+      this.current.vibeId = vibeId;
+    }
 
     // 2. Sample raw Web Audio telemetry
     const telemetry = audioEngine.getAudioTelemetry();

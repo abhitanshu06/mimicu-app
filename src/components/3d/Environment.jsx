@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useVibeStore } from '../../stores/vibeStore';
@@ -136,15 +136,28 @@ export default function Environment() {
   const tempRightFillColor = useMemo(() => new THREE.Color(), []);
   const tempLiftColor = useMemo(() => new THREE.Color('#94a3b8'), []);
 
+  // Cache envTheme in a ref — theme only changes on explicit user action, not per-frame.
+  // Avoids calling getEnvironmentTheme() (object lookup + creation) at 60fps.
+  const envThemeRef = useRef(getEnvironmentTheme(useThemeStore.getState().currentTheme));
+
+  useEffect(() => {
+    // Initialize from current state
+    envThemeRef.current = getEnvironmentTheme(useThemeStore.getState().currentTheme);
+    // Subscribe to future theme changes
+    const unsubscribe = useThemeStore.subscribe((state) => {
+      envThemeRef.current = getEnvironmentTheme(state.currentTheme);
+    });
+    return unsubscribe;
+  }, []);
+
   useFrame(() => {
     const targetVibe = useVibeStore.getState().targetVibe;
     const visualWorld = targetVibe?.visualWorld || DEFAULT_VISUAL_WORLD;
     const fog = visualWorld.fog || DEFAULT_VISUAL_WORLD.fog;
     const lighting = visualWorld.lighting || DEFAULT_VISUAL_WORLD.lighting;
 
-    // Theme-Aware Presentation Profile
-    const currentTheme = useThemeStore.getState().currentTheme;
-    const envTheme = getEnvironmentTheme(currentTheme?.type);
+    // Read cached envTheme — zero function call overhead per frame
+    const envTheme = envThemeRef.current;
 
     // Audio-Reactive Telemetry & Profile
     const audio = audioReactiveManager.getValues();

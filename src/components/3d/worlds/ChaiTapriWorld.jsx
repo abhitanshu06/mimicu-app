@@ -27,14 +27,16 @@ export default function ChaiTapriWorld({ vibe }) {
   const secondaryColor = vibe?.colors?.secondary || '#818cf8';
 
   // 1. Chai Kettle Steam Particles (Emerging from kettle spout and chai glass)
+  // Particle meta stored as flat Float32Arrays (5 fields × steamCount) for CPU-cache-friendly
+  // hot-loop access — avoids JS heap object property reads at 60fps.
   const steamCount = 38;
   const [steamPositions, steamAlphas, steamScales, steamMeta] = useMemo(() => {
     const pos = new Float32Array(steamCount * 3);
     const alphas = new Float32Array(steamCount);
     const scales = new Float32Array(steamCount);
-    const meta = [];
+    // Flat layout: [life, speed, driftPhase, driftFreq, baseScale] per particle
+    const meta = new Float32Array(steamCount * 5);
 
-    // Origin near the kettle spout on the tapri counter
     const originX = 0.55;
     const originY = -0.32;
     const originZ = 1.3;
@@ -45,29 +47,29 @@ export default function ChaiTapriWorld({ vibe }) {
       pos[i * 3 + 1] = originY + life * 1.1;
       pos[i * 3 + 2] = originZ + (Math.random() - 0.5) * 0.08;
       alphas[i] = Math.sin(life * Math.PI);
-      scales[i] = (0.08 + Math.random() * 0.06) * (1.0 + life * 2.2);
+      const baseScale = 0.08 + Math.random() * 0.06;
+      scales[i] = baseScale * (1.0 + life * 2.2);
 
-      meta.push({
-        life,
-        speed: 0.15 + Math.random() * 0.12,
-        driftPhase: Math.random() * Math.PI * 2,
-        driftFreq: 1.8 + Math.random() * 1.4,
-        baseScale: 0.08 + Math.random() * 0.06,
-      });
+      const b = i * 5;
+      meta[b]     = life;
+      meta[b + 1] = 0.15 + Math.random() * 0.12;         // speed
+      meta[b + 2] = Math.random() * Math.PI * 2;         // driftPhase
+      meta[b + 3] = 1.8 + Math.random() * 1.4;           // driftFreq
+      meta[b + 4] = baseScale;                            // baseScale
     }
 
     return [pos, alphas, scales, meta];
   }, [steamCount]);
 
   // 2. Cigarette Wispy Smoke (Emerging from character's left hand)
+  // Same flat Float32Array layout as steamMeta.
   const cigCount = 28;
   const [cigPositions, cigAlphas, cigScales, cigMeta] = useMemo(() => {
     const pos = new Float32Array(cigCount * 3);
     const alphas = new Float32Array(cigCount);
     const scales = new Float32Array(cigCount);
-    const meta = [];
+    const meta = new Float32Array(cigCount * 5);
 
-    // Hand cigarette position
     const handX = -0.58;
     const handY = -0.36;
     const handZ = 1.62;
@@ -78,15 +80,15 @@ export default function ChaiTapriWorld({ vibe }) {
       pos[i * 3 + 1] = handY + life * 0.9;
       pos[i * 3 + 2] = handZ + (Math.random() - 0.5) * 0.03;
       alphas[i] = Math.sin(life * Math.PI);
-      scales[i] = (0.04 + Math.random() * 0.04) * (1.0 + life * 2.8);
+      const baseScale = 0.05 + Math.random() * 0.04;
+      scales[i] = baseScale * (1.0 + life * 2.8);
 
-      meta.push({
-        life,
-        speed: 0.18 + Math.random() * 0.12,
-        driftPhase: Math.random() * Math.PI * 2,
-        driftFreq: 2.2 + Math.random() * 1.6,
-        baseScale: 0.05 + Math.random() * 0.04,
-      });
+      const b = i * 5;
+      meta[b]     = life;
+      meta[b + 1] = 0.18 + Math.random() * 0.12;         // speed
+      meta[b + 2] = Math.random() * Math.PI * 2;         // driftPhase
+      meta[b + 3] = 2.2 + Math.random() * 1.6;           // driftFreq
+      meta[b + 4] = baseScale;                            // baseScale
     }
 
     return [pos, alphas, scales, meta];
@@ -218,20 +220,20 @@ export default function ChaiTapriWorld({ vibe }) {
       const originZ = 1.3;
 
       for (let i = 0; i < steamCount; i++) {
-        const m = steamMeta[i];
-        m.life += delta * m.speed * 0.5;
-        if (m.life > 1.0) {
-          m.life = 0;
+        const b = i * 5;
+        steamMeta[b] += delta * steamMeta[b + 1] * 0.5; // life += delta * speed * 0.5
+        if (steamMeta[b] > 1.0) {
+          steamMeta[b] = 0;
           p.array[i * 3] = originX + (Math.random() - 0.5) * 0.04;
           p.array[i * 3 + 1] = originY;
           p.array[i * 3 + 2] = originZ + (Math.random() - 0.5) * 0.04;
         } else {
-          p.array[i * 3 + 1] = originY + m.life * 1.1;
-          const drift = Math.sin(time * m.driftFreq + m.driftPhase) * 0.04 * m.life;
+          p.array[i * 3 + 1] = originY + steamMeta[b] * 1.1;
+          const drift = Math.sin(time * steamMeta[b + 3] + steamMeta[b + 2]) * 0.04 * steamMeta[b];
           p.array[i * 3] = originX + drift;
         }
-        a.array[i] = Math.sin(m.life * Math.PI);
-        s.array[i] = m.baseScale * (1.0 + m.life * 2.2);
+        a.array[i] = Math.sin(steamMeta[b] * Math.PI);
+        s.array[i] = steamMeta[b + 4] * (1.0 + steamMeta[b] * 2.2);
       }
       p.needsUpdate = true;
       a.needsUpdate = true;
@@ -248,20 +250,20 @@ export default function ChaiTapriWorld({ vibe }) {
       const handZ = 2.03;
 
       for (let i = 0; i < cigCount; i++) {
-        const m = cigMeta[i];
-        m.life += delta * m.speed * 0.45;
-        if (m.life > 1.0) {
-          m.life = 0;
+        const b = i * 5;
+        cigMeta[b] += delta * cigMeta[b + 1] * 0.45; // life += delta * speed * 0.45
+        if (cigMeta[b] > 1.0) {
+          cigMeta[b] = 0;
           p.array[i * 3] = handX + (Math.random() - 0.5) * 0.02;
           p.array[i * 3 + 1] = handY;
           p.array[i * 3 + 2] = handZ + (Math.random() - 0.5) * 0.02;
         } else {
-          p.array[i * 3 + 1] = handY + m.life * 0.9;
-          const drift = Math.sin(time * m.driftFreq + m.driftPhase) * 0.035 * m.life;
+          p.array[i * 3 + 1] = handY + cigMeta[b] * 0.9;
+          const drift = Math.sin(time * cigMeta[b + 3] + cigMeta[b + 2]) * 0.035 * cigMeta[b];
           p.array[i * 3] = handX + drift;
         }
-        a.array[i] = Math.sin(m.life * Math.PI);
-        s.array[i] = m.baseScale * (1.0 + m.life * 2.8);
+        a.array[i] = Math.sin(cigMeta[b] * Math.PI);
+        s.array[i] = cigMeta[b + 4] * (1.0 + cigMeta[b] * 2.8);
       }
       p.needsUpdate = true;
       a.needsUpdate = true;

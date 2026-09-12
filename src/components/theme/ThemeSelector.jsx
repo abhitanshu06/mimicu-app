@@ -1,16 +1,179 @@
-import React from 'react';
-import { LIGHT_THEMES, DARK_THEMES } from '../../config/themes';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { GLASS_THEMES, SOLID_THEMES } from '../../config/themes';
 import { useThemeStore } from '../../stores/themeStore';
-import { Palette, Check, X, Moon, Sun } from 'lucide-react';
+import { X, Check } from 'lucide-react';
+
+/**
+ * ThemeCard
+ *
+ * Ultra-clean visual card containing ONLY:
+ * 1. Large real-aesthetic preview demonstrating actual Glass vs. Solid behavior
+ * 2. Theme name
+ * 3. Minimal selected state (subtle outline + small check indicator)
+ *
+ * Strictly no descriptions, badges, counts, or extraneous metadata.
+ */
+function ThemeCard({ theme, isSelected, onSelect }) {
+  const t = theme.tokens;
+  const isGlass = theme.type === 'glass';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(theme.id)}
+      className="group relative rounded-2xl p-2 sm:p-2.5 transition-all duration-200 cursor-pointer flex flex-col gap-2 text-center w-full select-none"
+      style={{
+        backgroundColor: isSelected ? 'var(--theme-surface-elevated)' : 'var(--theme-surface)',
+        border: isSelected
+          ? `2px solid ${t.accent}`
+          : '1px solid var(--theme-border)',
+        boxShadow: isSelected
+          ? `0 8px 24px -4px var(--theme-shadow-strong), 0 0 16px ${t.accentGlow}`
+          : '0 2px 8px 0 var(--theme-shadow)',
+        transform: isSelected ? 'scale(1.02)' : undefined,
+      }}
+    >
+      {/* 1. Large Visual Preview Window */}
+      <div
+        className="w-full rounded-xl p-2.5 sm:p-3 flex items-center justify-center relative overflow-hidden border shadow-inner transition-all duration-300"
+        style={{
+          backgroundColor: t.background,
+          borderColor: isGlass ? t.glassBorder : t.border,
+          height: '118px',
+        }}
+      >
+        {isGlass ? (
+          <>
+            {/* Ambient radiant environment shapes visible through glass */}
+            <div
+              className="absolute -top-3 -right-3 w-16 h-16 rounded-full blur-lg pointer-events-none opacity-85 transition-transform group-hover:scale-110 duration-500"
+              style={{ backgroundColor: t.accent }}
+            />
+            <div
+              className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full blur-lg pointer-events-none opacity-75 transition-transform group-hover:scale-110 duration-500"
+              style={{ backgroundColor: t.accentSecondary || t.accent }}
+            />
+
+            {/* Centered Translucent Glass Panel */}
+            <div
+              className="w-[84%] h-[72%] rounded-xl p-2 flex flex-col justify-between relative z-10 mx-auto my-auto transition-all"
+              style={{
+                backgroundColor: t.surface,
+                backdropFilter: 'blur(14px)',
+                WebkitBackdropFilter: 'blur(14px)',
+                border: `1px solid ${t.glassBorder || t.border}`,
+                boxShadow: '0 6px 16px -2px rgba(0,0,0,0.25), inset 0 1px 1px 0 rgba(255,255,255,0.22)',
+              }}
+            >
+              {/* Top: Typography mark & accent indicator */}
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-xs font-bold font-mono tracking-tight"
+                  style={{ color: t.textPrimary }}
+                >
+                  Aa
+                </span>
+                <div
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: t.accent,
+                    boxShadow: `0 0 8px ${t.accentGlow}`,
+                  }}
+                />
+              </div>
+
+              {/* Bottom: Glass accent sheen line */}
+              <div className="flex items-center gap-1.5 pt-1.5">
+                <div
+                  className="h-1.5 flex-1 rounded-full opacity-90"
+                  style={{ backgroundColor: t.accent }}
+                />
+                <div
+                  className="h-1.5 w-4 rounded-full opacity-50"
+                  style={{ backgroundColor: t.textMuted }}
+                />
+                <div
+                  className="h-1.5 w-3 rounded-full opacity-30"
+                  style={{ backgroundColor: t.glassBorder || t.border }}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Solid Opaque Surface — completely opaque, flat, no transparency, no blur */
+          <div
+            className="w-[84%] h-[72%] rounded-xl p-2 flex flex-col justify-between relative z-10 mx-auto my-auto shadow-md"
+            style={{
+              backgroundColor: t.surface,
+              border: `1px solid ${t.border}`,
+            }}
+          >
+            {/* Top: Typography mark & solid accent indicator */}
+            <div className="flex items-center justify-between">
+              <span
+                className="text-xs font-bold font-mono tracking-tight"
+                style={{ color: t.textPrimary }}
+              >
+                Aa
+              </span>
+              <div
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: t.accent }}
+              />
+            </div>
+
+            {/* Bottom: Solid palette swatch bars */}
+            <div className="flex items-center gap-1.5 pt-1.5">
+              <div
+                className="h-1.5 flex-1 rounded-full"
+                style={{ backgroundColor: t.accent }}
+              />
+              <div
+                className="h-1.5 w-4 rounded-full opacity-70"
+                style={{ backgroundColor: t.textMuted }}
+              />
+              <div
+                className="h-1.5 w-3 rounded-full opacity-40"
+                style={{ backgroundColor: t.border }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Selected Check Indicator */}
+        {isSelected && (
+          <div
+            className="absolute top-2 right-2 z-20 w-4 h-4 rounded-full flex items-center justify-center shadow-sm"
+            style={{
+              backgroundColor: t.accent,
+              color: t.accentText,
+            }}
+          >
+            <Check className="w-2.5 h-2.5 stroke-[3]" />
+          </div>
+        )}
+      </div>
+
+      {/* 2. Theme Name Only */}
+      <span
+        className="font-semibold text-xs sm:text-sm tracking-tight truncate px-1"
+        style={{ color: 'var(--theme-text-primary)' }}
+      >
+        {theme.name}
+      </span>
+    </button>
+  );
+}
 
 /**
  * ThemeSelector
  *
- * Premium Theme Switcher Modal.
- * - Separate Light / Dark sections
- * - Real themed mini-preview (shows actual bg, surface, accent, and text)
- * - 1-click persistent activation without modifying the active 3D Vibe world
- * - All colors use CSS variable tokens — works in all themes
+ * Master Theme Switcher Modal rendered via React Portal at root body level.
+ * - Sits strictly at z-[990] (backdrop) and z-[1000] (modal dialog), above MiniPlayer (z-50) and Sidebar (z-40).
+ * - Locks underlying body scrolling when active.
+ * - Internal scrolling strictly on theme grid container; header remains stable.
+ * - Exactly TWO top-level tabs: [ Glass ] and [ Solid ].
  */
 export default function ThemeSelector() {
   const currentTheme = useThemeStore((state) => state.currentTheme);
@@ -18,134 +181,78 @@ export default function ThemeSelector() {
   const closeThemeModal = useThemeStore((state) => state.closeThemeModal);
   const setTheme = useThemeStore((state) => state.setTheme);
 
+  // Default active tab to current theme's type ('glass' | 'solid')
+  const [activeTab, setActiveTab] = useState(() => {
+    return currentTheme?.type === 'solid' ? 'solid' : 'glass';
+  });
+
+  // Keep active tab in sync when modal opens
+  useEffect(() => {
+    if (isThemeModalOpen && currentTheme?.type) {
+      setActiveTab(currentTheme.type);
+    }
+  }, [isThemeModalOpen, currentTheme?.type]);
+
+  // Lock background scroll when modal is active
+  useEffect(() => {
+    if (isThemeModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isThemeModalOpen]);
+
+  const displayedThemes = useMemo(() => {
+    return activeTab === 'solid' ? SOLID_THEMES : GLASS_THEMES;
+  }, [activeTab]);
+
   if (!isThemeModalOpen) return null;
 
-  const ThemeCard = ({ theme }) => {
-    const isSelected = currentTheme.id === theme.id;
-    const t = theme.tokens;
-
-    return (
-      <div
-        onClick={() => setTheme(theme.id)}
-        className="group relative rounded-2xl p-4 transition-all duration-300 cursor-pointer flex flex-col gap-3"
-        style={{
-          backgroundColor: isSelected ? 'var(--theme-surface-elevated)' : 'var(--theme-surface)',
-          border: isSelected
-            ? `1px solid ${t.accent}`
-            : '1px solid var(--theme-border)',
-          boxShadow: isSelected
-            ? `0 8px 24px 0 var(--theme-shadow), 0 0 16px ${t.accentGlow}`
-            : `0 4px 16px 0 var(--theme-shadow)`,
-          transform: isSelected ? 'scale(1.02)' : undefined,
-        }}
-      >
-        {/* Theme name & check */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm tracking-wide" style={{ color: 'var(--theme-text-primary)' }}>
-              {theme.name}
-            </span>
-            {isSelected && (
-              <span className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center">
-                <Check className="w-2.5 h-2.5 text-emerald-400" />
-              </span>
-            )}
-          </div>
-          <span
-            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-            style={{
-              backgroundColor: 'var(--theme-btn-secondary)',
-              border: '1px solid var(--theme-border)',
-              color: 'var(--theme-text-muted)',
-            }}
-          >
-            {theme.type === 'light' ? '☀' : '◗'}
-          </span>
-        </div>
-
-        {/* Real themed mini-preview */}
-        <div
-          className="w-full rounded-xl p-2.5 flex flex-col gap-1.5 relative overflow-hidden"
-          style={{ backgroundColor: t.bg, border: `1px solid ${t.border}` }}
-        >
-          {/* Mini surface card */}
-          <div
-            className="rounded-lg px-2 py-1.5 flex items-center justify-between"
-            style={{ backgroundColor: t.surface, border: `1px solid ${t.border}` }}
-          >
-            <span className="text-[9px] font-semibold" style={{ color: t.textPrimary }}>MIMICU</span>
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t.accent }} />
-          </div>
-          {/* Mini button row */}
-          <div className="flex gap-1">
-            <div
-              className="flex-1 rounded-md text-center"
-              style={{ backgroundColor: t.buttonPrimary, height: '10px' }}
-            />
-            <div
-              className="flex-1 rounded-md"
-              style={{ backgroundColor: t.buttonSecondary, border: `1px solid ${t.border}`, height: '10px' }}
-            />
-          </div>
-          {/* Accent strip */}
-          <div
-            className="w-full h-[3px] rounded-full"
-            style={{ background: `linear-gradient(to right, ${t.accent}, ${t.accentGlow})` }}
-          />
-        </div>
-
-        {/* Tagline */}
-        <p className="text-[10px] font-light line-clamp-1" style={{ color: 'var(--theme-text-muted)' }}>
-          {theme.tagline}
-        </p>
-      </div>
-    );
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
-      style={{ backgroundColor: 'var(--theme-overlay)' }}
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[990] flex items-center justify-center p-3 sm:p-6 select-none animate-fadeIn"
+      style={{
+        backgroundColor: 'var(--theme-overlay, rgba(0, 0, 0, 0.70))',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+      }}
     >
       {/* Backdrop click to dismiss */}
-      <div className="absolute inset-0" onClick={closeThemeModal} aria-hidden="true" />
+      <div
+        className="absolute inset-0 cursor-pointer"
+        onClick={closeThemeModal}
+        aria-hidden="true"
+      />
 
       {/* Modal Dialog Window */}
       <div
-        className="relative w-full max-w-4xl max-h-[88vh] rounded-3xl p-6 sm:p-8 flex flex-col shadow-2xl overflow-hidden z-10 transition-all"
+        className="relative z-[1000] w-full max-w-4xl max-h-[85vh] rounded-3xl p-5 sm:p-7 flex flex-col shadow-2xl overflow-hidden transition-all"
         style={{
-          backgroundColor: 'var(--theme-bg-elevated)',
-          backdropFilter: 'blur(32px)',
-          WebkitBackdropFilter: 'blur(32px)',
-          border: '1px solid var(--theme-border)',
+          backgroundColor: 'var(--theme-modal-bg, var(--theme-surface-elevated))',
+          backdropFilter: 'blur(var(--theme-glass-blur, 24px))',
+          WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
+          border: '1px solid var(--theme-glass-border, var(--theme-border))',
           color: 'var(--theme-text-primary)',
           boxShadow: '0 24px 64px -8px var(--theme-shadow-strong)',
         }}
       >
-        {/* Header */}
+        {/* Stable Header */}
         <div
-          className="flex items-center justify-between pb-5 mb-6"
+          className="shrink-0 flex items-center justify-between pb-3.5 mb-3.5"
           style={{ borderBottom: '1px solid var(--theme-border)' }}
         >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: 'var(--theme-btn-secondary)', border: '1px solid var(--theme-border)' }}
-            >
-              <Palette className="w-5 h-5" style={{ color: 'var(--theme-accent)' }} />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-display font-bold" style={{ color: 'var(--theme-text-primary)' }}>
-                Application Themes
-              </h2>
-              <p className="text-xs sm:text-sm font-light" style={{ color: 'var(--theme-text-muted)' }}>
-                UI styling only — never interrupts the active 3D atmosphere world.
-              </p>
-            </div>
-          </div>
+          <h2
+            className="text-lg sm:text-xl font-display font-bold tracking-tight"
+            style={{ color: 'var(--theme-text-primary)' }}
+          >
+            Application Themes
+          </h2>
 
           <button
             onClick={closeThemeModal}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
             style={{
               backgroundColor: 'var(--theme-btn-secondary)',
               border: '1px solid var(--theme-border)',
@@ -157,70 +264,55 @@ export default function ThemeSelector() {
           </button>
         </div>
 
-        {/* Scrollable Theme Content */}
-        <div className="flex-1 overflow-y-auto pr-1">
-
-          {/* ── LIGHT THEMES ─── */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Sun className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-semibold tracking-wide" style={{ color: 'var(--theme-text-secondary)' }}>
-                Light Themes
-              </span>
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full"
-                style={{ backgroundColor: 'var(--theme-btn-secondary)', color: 'var(--theme-text-muted)', border: '1px solid var(--theme-border)' }}
-              >
-                {LIGHT_THEMES.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {LIGHT_THEMES.map((theme) => <ThemeCard key={theme.id} theme={theme} />)}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="mb-6" style={{ borderTop: '1px solid var(--theme-border)' }} />
-
-          {/* ── DARK THEMES ─── */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Moon className="w-4 h-4" style={{ color: 'var(--theme-accent)' }} />
-              <span className="text-sm font-semibold tracking-wide" style={{ color: 'var(--theme-text-secondary)' }}>
-                Dark Themes
-              </span>
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full"
-                style={{ backgroundColor: 'var(--theme-btn-secondary)', color: 'var(--theme-text-muted)', border: '1px solid var(--theme-border)' }}
-              >
-                {DARK_THEMES.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {DARK_THEMES.map((theme) => <ThemeCard key={theme.id} theme={theme} />)}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div
-          className="pt-4 mt-4 flex items-center justify-between text-xs font-light"
-          style={{ borderTop: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' }}
-        >
-          <span>Active: <strong style={{ color: 'var(--theme-text-primary)' }}>{currentTheme.name}</strong> — persists automatically across navigation.</span>
+        {/* Strictly Two Category Tabs: [ Glass ]  [ Solid ] */}
+        <div className="shrink-0 grid grid-cols-2 gap-2 pb-3.5 mb-3.5 select-none">
           <button
-            onClick={closeThemeModal}
-            className="px-4 py-1.5 rounded-xl font-medium transition-all"
+            type="button"
+            onClick={() => setActiveTab('glass')}
+            className="py-2.5 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all cursor-pointer"
             style={{
-              backgroundColor: 'var(--theme-btn-secondary)',
-              border: '1px solid var(--theme-border)',
-              color: 'var(--theme-text-primary)',
+              backgroundColor: activeTab === 'glass' ? 'var(--theme-btn-primary)' : 'var(--theme-btn-secondary)',
+              color: activeTab === 'glass' ? 'var(--theme-btn-primary-text)' : 'var(--theme-text-secondary)',
+              border: activeTab === 'glass' ? '1px solid var(--theme-accent)' : '1px solid var(--theme-border)',
+              boxShadow: activeTab === 'glass' ? '0 0 14px var(--theme-glow)' : undefined,
             }}
           >
-            Done
+            Glass
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('solid')}
+            className="py-2.5 rounded-xl text-xs sm:text-sm font-semibold tracking-wide transition-all cursor-pointer"
+            style={{
+              backgroundColor: activeTab === 'solid' ? 'var(--theme-btn-primary)' : 'var(--theme-btn-secondary)',
+              color: activeTab === 'solid' ? 'var(--theme-btn-primary-text)' : 'var(--theme-text-secondary)',
+              border: activeTab === 'solid' ? '1px solid var(--theme-accent)' : '1px solid var(--theme-border)',
+              boxShadow: activeTab === 'solid' ? '0 0 14px var(--theme-glow)' : undefined,
+            }}
+          >
+            Solid
+          </button>
+        </div>
+
+        {/* Scrollable Theme Grid: Only this inner container scrolls */}
+        <div className="flex-1 overflow-y-auto pr-1 sm:pr-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 pb-2">
+            {displayedThemes.map((theme) => (
+              <ThemeCard
+                key={theme.id}
+                theme={theme}
+                isSelected={currentTheme?.id === theme.id}
+                onSelect={setTheme}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
+
+  // Render directly at body level via React Portal so no container stacking context can trap it
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 }

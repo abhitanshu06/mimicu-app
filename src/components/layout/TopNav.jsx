@@ -32,7 +32,7 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
           backgroundColor: 'var(--theme-glass-strong)',
           backdropFilter: 'blur(var(--theme-glass-blur, 24px))',
           WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
-          border: '1px solid var(--theme-border)',
+          border: '1px solid var(--theme-glass-border, var(--theme-border))',
         }}
         title="Mimicu Home"
       >
@@ -74,7 +74,7 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
             backgroundColor: 'var(--theme-glass-strong)',
             backdropFilter: 'blur(var(--theme-glass-blur, 24px))',
             WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
-            border: '1px solid var(--theme-border)',
+            border: '1px solid var(--theme-glass-border, var(--theme-border))',
             color: 'var(--theme-text-primary)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--theme-border-hover)'; }}
@@ -97,7 +97,7 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
             WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
             border: isEqActive 
               ? `1px solid ${activeVibe.colors.primary}` 
-              : '1px solid var(--theme-border)',
+              : '1px solid var(--theme-glass-border, var(--theme-border))',
             boxShadow: isEqActive ? `0 0 16px ${activeVibe.colors.glow}` : undefined,
             color: isEqActive ? activeVibe.colors.primary : 'var(--theme-text-primary)',
           }}
@@ -122,7 +122,7 @@ export default function TopNav({ currentPath = '/', onNavigate, onProfileClick }
             WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
             border: isProfileActive 
               ? `1px solid ${activeVibe.colors.primary}` 
-              : '1px solid var(--theme-border)',
+              : '1px solid var(--theme-glass-border, var(--theme-border))',
             boxShadow: isProfileActive ? `0 0 16px ${activeVibe.colors.glow}` : undefined,
             color: isProfileActive ? activeVibe.colors.primary : 'var(--theme-text-primary)',
           }}

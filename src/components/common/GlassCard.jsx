@@ -37,7 +37,7 @@ export default function GlassCard({
         WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 24px))',
         borderColor: active
           ? 'var(--vibe-accent, var(--theme-accent))'
-          : 'var(--theme-border)',
+          : 'var(--theme-glass-border, var(--theme-border))',
         borderWidth: '1px',
         borderStyle: 'solid',
         color: 'var(--theme-text-primary)',

@@ -110,7 +110,7 @@ export default function DesktopSidebar({ currentPath = '/', onNavigate }) {
         backgroundColor: 'var(--theme-glass-strong)',
         backdropFilter: 'blur(var(--theme-glass-blur, 28px))',
         WebkitBackdropFilter: 'blur(var(--theme-glass-blur, 28px))',
-        border: '1px solid var(--theme-border)',
+        border: '1px solid var(--theme-glass-border, var(--theme-border))',
         boxShadow: `0 20px 50px -12px var(--theme-shadow-strong), 0 0 32px -4px ${activeVibe.colors.glow || 'rgba(168, 85, 247, 0.25)'}`,
       }}
     >
