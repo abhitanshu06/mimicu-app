@@ -176,6 +176,7 @@ export default function MiniPlayer({ onNavigate }) {
   const shuffle = useAudioStore((state) => state.shuffle);
   const repeat = useAudioStore((state) => state.repeat);
   const currentVibeContext = useAudioStore((state) => state.currentVibeContext);
+  const playbackContext = useAudioStore((state) => state.playbackContext);
 
   const togglePlay = useAudioStore((state) => state.togglePlay);
   const next = useAudioStore((state) => state.next);
@@ -192,8 +193,9 @@ export default function MiniPlayer({ onNavigate }) {
 
   const handleVibeBadgeClick = (e) => {
     e.stopPropagation();
-    if (currentVibeContext?.page && onNavigate) {
-      onNavigate(currentVibeContext.page);
+    const targetPage = playbackContext?.page || currentVibeContext?.page;
+    if (targetPage && onNavigate) {
+      onNavigate(targetPage);
     }
   };
 
@@ -251,8 +253,8 @@ export default function MiniPlayer({ onNavigate }) {
                 {currentTrack.artist}
               </p>
 
-              {/* Current Vibe Context Badge (Clickable) */}
-              {currentVibeContext && (
+              {/* Current Context Badge (Clickable) */}
+              {(playbackContext || currentVibeContext) && (
                 <button
                   onClick={handleVibeBadgeClick}
                   className="inline-flex items-center gap-1 text-[9px] lg:text-[10px] font-medium tracking-wide mt-1 px-1.5 py-0.5 rounded-md hover:opacity-100 transition-opacity opacity-85 shrink-0"
@@ -261,10 +263,10 @@ export default function MiniPlayer({ onNavigate }) {
                     color: activeVibe.colors.primary,
                     border: '1px solid var(--theme-border, rgba(255,255,255,0.08))',
                   }}
-                  title={`Go to ${currentVibeContext.name} Vibe`}
+                  title={`Go to ${(playbackContext || currentVibeContext).name}`}
                 >
-                  <span>{currentVibeContext.emoji}</span>
-                  <span className="truncate max-w-[90px] lg:max-w-[120px]">{currentVibeContext.name}</span>
+                  <span>{(playbackContext || currentVibeContext).emoji}</span>
+                  <span className="truncate max-w-[90px] lg:max-w-[120px]">{(playbackContext || currentVibeContext).name}</span>
                 </button>
               )}
             </div>
@@ -437,8 +439,8 @@ export default function MiniPlayer({ onNavigate }) {
                   style={{ color: 'var(--theme-text-muted)' }}
                 >
                   <span className="truncate">{currentTrack.artist}</span>
-                  {currentVibeContext && (
-                    <span className="shrink-0 opacity-80">· {currentVibeContext.emoji}</span>
+                  {(playbackContext || currentVibeContext) && (
+                    <span className="shrink-0 opacity-80">· {(playbackContext || currentVibeContext).emoji}</span>
                   )}
                 </div>
               </div>

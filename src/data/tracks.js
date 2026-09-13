@@ -21,6 +21,8 @@
  * }
  */
 
+import { VIBES } from '../config/vibes.js';
+
 // Curated royalty-free / Creative Commons ambient & lo-fi audio demo sources
 // (Hosted on fast, reliable public royalty-free CDN audio streams with Web Audio procedural fallback)
 const DEMO_AUDIO = {
@@ -582,13 +584,40 @@ const VIBE_ALIASES = {
 };
 
 /**
+ * Helper to fetch a single canonical track by ID
+ * @param {string} id
+ * @returns {Object|null}
+ */
+export function getTrackById(id) {
+  if (!id) return null;
+  return TRACKS.find((t) => t.id === id) || null;
+}
+
+/**
  * Helper to fetch tracks belonging to a given Vibe ID
- * Falls back to compatible genre/mood matching if direct vibeId has fewer tracks
+ * Resolves curated trackIds from VIBES configuration in exact canonical order.
+ * Falls back to genre/mood matching if trackIds are empty or vibe not found.
  */
 export function getTracksForVibe(vibeId) {
+  if (!vibeId) return [];
   const targetId = VIBE_ALIASES[vibeId] || vibeId;
+  const vibe = VIBES[targetId] || VIBES[vibeId];
+
+  // 1. Resolve canonical trackIds in specified order
+  if (vibe && Array.isArray(vibe.trackIds) && vibe.trackIds.length > 0) {
+    const trackMap = new Map(TRACKS.map((t) => [t.id, t]));
+    const resolvedTracks = vibe.trackIds
+      .map((id) => trackMap.get(id))
+      .filter(Boolean);
+
+    if (resolvedTracks.length > 0) {
+      return resolvedTracks;
+    }
+  }
+
+  // 2. Backward-compatible fallback to direct matching
   const directMatches = TRACKS.filter((t) => 
-    t.vibeIds.includes(targetId) || t.vibeIds.includes(vibeId)
+    t.vibeIds?.includes(targetId) || t.vibeIds?.includes(vibeId)
   );
   if (directMatches.length >= 3) {
     return directMatches;
@@ -596,7 +625,7 @@ export function getTracksForVibe(vibeId) {
   
   // Also include general atmospheric tracks to ensure rich playlists
   const extras = TRACKS.filter((t) => 
-    !t.vibeIds.includes(targetId) && !t.vibeIds.includes(vibeId)
+    !t.vibeIds?.includes(targetId) && !t.vibeIds?.includes(vibeId)
   );
   return [...directMatches, ...extras.slice(0, 4)];
 }

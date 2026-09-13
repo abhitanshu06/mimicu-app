@@ -156,6 +156,7 @@ export default function FullPlayer({ onNavigate }) {
   const shuffle = useAudioStore((state) => state.shuffle);
   const repeat = useAudioStore((state) => state.repeat);
   const currentVibeContext = useAudioStore((state) => state.currentVibeContext);
+  const playbackContext = useAudioStore((state) => state.playbackContext);
 
   const togglePlay = useAudioStore((state) => state.togglePlay);
   const next = useAudioStore((state) => state.next);
@@ -174,9 +175,10 @@ export default function FullPlayer({ onNavigate }) {
   if (!isFullPlayerOpen || !currentTrack) return null;
 
   const handleVibeClick = () => {
-    if (currentVibeContext?.page && onNavigate) {
+    const targetPage = playbackContext?.page || currentVibeContext?.page;
+    if (targetPage && onNavigate) {
       closeFullPlayer();
-      onNavigate(currentVibeContext.page);
+      onNavigate(targetPage);
     }
   };
 
@@ -219,7 +221,7 @@ export default function FullPlayer({ onNavigate }) {
         </button>
 
         {/* Current Vibe Pill Context */}
-        {currentVibeContext && (
+        {(playbackContext || currentVibeContext) && (
           <button
             onClick={handleVibeClick}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 hover:scale-105 cursor-pointer shadow-lg"
@@ -228,10 +230,10 @@ export default function FullPlayer({ onNavigate }) {
               border: `1px solid ${activeVibe.colors.primary}60`,
               boxShadow: `0 0 20px ${activeVibe.colors.glow}`,
             }}
-            title="Open Vibe Page"
+            title={`Open ${(playbackContext || currentVibeContext).name}`}
           >
-            <span>{currentVibeContext.emoji}</span>
-            <span>PLAYING FROM: {currentVibeContext.name.toUpperCase()}</span>
+            <span>{(playbackContext || currentVibeContext).emoji}</span>
+            <span>PLAYING FROM: {(playbackContext || currentVibeContext).name.toUpperCase()}</span>
           </button>
         )}
 

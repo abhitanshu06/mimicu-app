@@ -44,6 +44,7 @@ export const VIBES = {
     moodTags: ['solitary', 'reflective', 'cinematic', 'quiet'],
     energy: 0.35,
     bpmRange: [65, 88],
+    trackIds: ['track-3am-1', 'track-3am-2', 'track-3am-3', 'track-3am-4', 'track-drive-1', 'track-rain-1'],
   },
 
   // 2. CHAI & SUTTA
@@ -81,6 +82,7 @@ export const VIBES = {
     moodTags: ['nostalgic', 'unwinding', 'contemplative', 'warm'],
     energy: 0.3,
     bpmRange: [70, 95],
+    trackIds: ['track-chai-1', 'track-chai-2', 'track-chai-3', 'track-chai-4', 'track-terrace-1', 'track-3am-3'],
   },
 
   // 3. DEEP FOCUS
@@ -118,6 +120,7 @@ export const VIBES = {
     moodTags: ['laser-focused', 'pure-clarity', 'calm', 'distraction-free'],
     energy: 0.2,
     bpmRange: [55, 75],
+    trackIds: ['track-focus-1', 'track-focus-2', 'track-focus-3', 'track-code-2', 'track-star-3', 'track-rain-3'],
   },
 
   // 4. LONG DRIVE
@@ -155,6 +158,7 @@ export const VIBES = {
     moodTags: ['forward-motion', 'cinematic', 'free', 'adventurous'],
     energy: 0.7,
     bpmRange: [110, 130],
+    trackIds: ['track-drive-1', 'track-drive-2', 'track-drive-3', 'track-3am-3', 'track-travel-1', 'track-game-3'],
   },
 
   // 5. RAINY WINDOW
@@ -192,6 +196,7 @@ export const VIBES = {
     moodTags: ['melancholic', 'peaceful', 'cozy', 'sheltered'],
     energy: 0.25,
     bpmRange: [60, 80],
+    trackIds: ['track-rain-1', 'track-rain-2', 'track-rain-3', 'track-3am-2', 'track-focus-2', 'track-serene-1'],
   },
 
   // 6. CODING LATE NIGHT
@@ -229,6 +234,7 @@ export const VIBES = {
     moodTags: ['flow-state', 'hyper-focus', 'digital', 'nocturnal'],
     energy: 0.5,
     bpmRange: [85, 115],
+    trackIds: ['track-code-1', 'track-code-2', 'track-code-3', 'track-focus-1', 'track-game-1', 'track-drive-3'],
   },
 
   // 7. STARGAZING
@@ -266,6 +272,7 @@ export const VIBES = {
     moodTags: ['infinite', 'awe-inspiring', 'tranquil', 'celestial'],
     energy: 0.2,
     bpmRange: [50, 75],
+    trackIds: ['track-star-1', 'track-star-2', 'track-star-3', 'track-3am-4', 'track-serene-2', 'track-focus-3'],
   },
 
   // 8. FOREST ESCAPE
@@ -303,6 +310,7 @@ export const VIBES = {
     moodTags: ['grounded', 'rejuvenating', 'mossy', 'organic'],
     energy: 0.3,
     bpmRange: [65, 90],
+    trackIds: ['track-forest-1', 'track-forest-2', 'track-forest-3', 'track-serene-1'],
   },
 
   // 9. GAMING
@@ -340,6 +348,7 @@ export const VIBES = {
     moodTags: ['competitive', 'high-voltage', 'laser-sharp', 'dynamic'],
     energy: 0.85,
     bpmRange: [120, 150],
+    trackIds: ['track-game-1', 'track-game-2', 'track-game-3', 'track-code-1', 'track-drive-2', 'track-star-2'],
   },
 
   // 10. BONFIRE
@@ -377,6 +386,7 @@ export const VIBES = {
     moodTags: ['cozy', 'crackling', 'communal', 'campfire'],
     energy: 0.4,
     bpmRange: [70, 95],
+    trackIds: ['track-chai-3', 'track-terrace-1', 'track-forest-2', 'track-star-1'],
   },
 
   // 11. BATHING
@@ -414,6 +424,7 @@ export const VIBES = {
     moodTags: ['unwinding', 'steamy', 'sensory', 'peaceful'],
     energy: 0.2,
     bpmRange: [55, 75],
+    trackIds: ['track-serene-2', 'track-rain-1', 'track-star-1', 'track-focus-3', 'track-serene-3', 'track-3am-4'],
   },
 
   // 12. GYM MODE
@@ -451,6 +462,7 @@ export const VIBES = {
     moodTags: ['high-adrenaline', 'unstoppable', 'explosive', 'pumping'],
     energy: 0.95,
     bpmRange: [130, 175],
+    trackIds: ['track-drive-2', 'track-game-1', 'track-game-2', 'track-code-3'],
   },
 
   // 13. TERRACE WALKING
@@ -488,6 +500,7 @@ export const VIBES = {
     moodTags: ['contemplative', 'breezy', 'pacing', 'open-air'],
     energy: 0.4,
     bpmRange: [75, 95],
+    trackIds: ['track-terrace-1', 'track-terrace-2', 'track-chai-4', 'track-3am-3', 'track-star-1', 'track-travel-2'],
   },
 
   // 14. TERRACE EVENING
@@ -525,6 +538,7 @@ export const VIBES = {
     moodTags: ['golden-hour', 'nostalgic', 'soothing', 'serene'],
     energy: 0.35,
     bpmRange: [70, 90],
+    trackIds: ['track-terrace-2', 'track-chai-3', 'track-travel-2', 'track-3am-1', 'track-terrace-1', 'track-star-1'],
   },
 
   // 15. MONSOON
@@ -562,6 +576,7 @@ export const VIBES = {
     moodTags: ['petrichor', 'torrential', 'cosmic-wash', 'brooding'],
     energy: 0.4,
     bpmRange: [60, 85],
+    trackIds: ['track-rain-2', 'track-chai-1', 'track-rain-1', 'track-chai-3', 'track-3am-2', 'track-serene-1'],
   },
 
   // 16. BED ROT
@@ -599,6 +614,7 @@ export const VIBES = {
     moodTags: ['cozy', 'horizontal', 'safe', 'unbothered'],
     energy: 0.15,
     bpmRange: [50, 70],
+    trackIds: ['track-rain-1', 'track-rain-3', 'track-3am-2', 'track-serene-2'],
   },
 
   // 17. STUDY ROOM
@@ -636,6 +652,7 @@ export const VIBES = {
     moodTags: ['diligent', 'scholarly', 'grounded', 'uninterrupted'],
     energy: 0.3,
     bpmRange: [60, 80],
+    trackIds: ['track-focus-2', 'track-focus-1', 'track-rain-2', 'track-chai-2', 'track-serene-3', 'track-forest-2'],
   },
 
   // 18. BEACH EVENING
@@ -673,6 +690,7 @@ export const VIBES = {
     moodTags: ['tidal', 'warm-breeze', 'boundless', 'peaceful'],
     energy: 0.35,
     bpmRange: [75, 98],
+    trackIds: ['track-travel-2', 'track-travel-1', 'track-terrace-2', 'track-serene-2', 'track-star-2', 'track-chai-4'],
   },
 
   // 19. TRAIN JOURNEY
@@ -710,6 +728,7 @@ export const VIBES = {
     moodTags: ['rhythmic', 'transit', 'pensive', 'drifting'],
     energy: 0.5,
     bpmRange: [85, 110],
+    trackIds: ['track-travel-1', 'track-travel-2', 'track-drive-1', 'track-chai-4'],
   },
 
   // 20. AIRPORT NIGHTS
@@ -747,6 +766,7 @@ export const VIBES = {
     moodTags: ['liminal', 'departure', 'transit', 'stillness'],
     energy: 0.35,
     bpmRange: [65, 90],
+    trackIds: ['track-travel-2', 'track-3am-1', 'track-focus-3', 'track-star-3'],
   },
 
   // 21. LATE NIGHT ALONE
@@ -784,6 +804,7 @@ export const VIBES = {
     moodTags: ['introspective', 'solitary', 'untethered', 'peaceful'],
     energy: 0.2,
     bpmRange: [55, 75],
+    trackIds: ['track-3am-1', 'track-3am-2', 'track-3am-4', 'track-rain-3'],
   },
 
   // 22. PEACEFUL MORNING
@@ -821,6 +842,7 @@ export const VIBES = {
     moodTags: ['optimistic', 'fresh', 'gentle', 'rejuvenating'],
     energy: 0.35,
     bpmRange: [70, 95],
+    trackIds: ['track-serene-1', 'track-forest-1', 'track-chai-2', 'track-travel-1', 'track-focus-2', 'track-serene-3'],
   },
 
   // 23. HEADPHONES ON
@@ -858,6 +880,7 @@ export const VIBES = {
     moodTags: ['immersive', 'isolated', 'audiophile', 'private'],
     energy: 0.65,
     bpmRange: [90, 125],
+    trackIds: ['track-3am-1', 'track-3am-2', 'track-code-1', 'track-focus-1'],
   },
 
   // 24. SKY SHIFT (Default Atmospheric Dimension)
@@ -895,6 +918,7 @@ export const VIBES = {
     moodTags: ['weightless', 'airy', 'celestial', 'transcendent'],
     energy: 0.35,
     bpmRange: [65, 90],
+    trackIds: ['track-star-1', 'track-star-3', 'track-3am-4', 'track-travel-2'],
   },
 };
 

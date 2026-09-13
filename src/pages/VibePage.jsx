@@ -12,6 +12,8 @@ import {
   Play, 
   Pause, 
   Shuffle, 
+  Repeat,
+  Repeat1,
   ArrowLeft, 
   Music, 
   Clock, 
@@ -52,23 +54,28 @@ export default function VibePage({ vibeId, onNavigate }) {
   const isPlaying = useAudioStore((state) => state.playing);
   const queue = useAudioStore((state) => state.queue);
   const queueIndex = useAudioStore((state) => state.queueIndex);
+  const shuffle = useAudioStore((state) => state.shuffle);
+  const repeat = useAudioStore((state) => state.repeat);
   const likedTrackIds = useAudioStore((state) => state.likedTrackIds);
   const playTrack = useAudioStore((state) => state.playTrack);
   const playVibe = useAudioStore((state) => state.playVibe);
   const togglePlay = useAudioStore((state) => state.togglePlay);
+  const toggleShuffle = useAudioStore((state) => state.toggleShuffle);
+  const toggleRepeat = useAudioStore((state) => state.toggleRepeat);
   const addToQueue = useAudioStore((state) => state.addToQueue);
   const toggleLike = useAudioStore((state) => state.toggleLike);
   const isLiked = useAudioStore((state) => state.isLiked);
-  const currentVibeContext = useAudioStore((state) => state.currentVibeContext);
+  const playbackContext = useAudioStore((state) => state.playbackContext);
 
   // 3. Fetch tracks for this vibe
   const tracks = getTracksForVibe(vibe.id);
   const recommendedTracks = getRecommendedTracks(vibe.id, 3);
   const totalDurationSeconds = tracks.reduce((acc, t) => acc + (t.duration || 0), 0);
 
-  // Is this vibe currently playing?
-  const isThisVibeActive = currentVibeContext?.id === vibe.id;
+  // Is this specific vibe currently active in playback context?
+  const isThisVibeActive = playbackContext?.type === 'vibe' && playbackContext?.id === vibe.id;
   const isThisVibePlaying = isThisVibeActive && isPlaying;
+  const currentTrackIndex = tracks.findIndex((t) => t.id === currentTrack?.id);
 
   // 4. Automatically morph 3D environment to match this Vibe on mount
   useEffect(() => {
@@ -80,20 +87,33 @@ export default function VibePage({ vibeId, onNavigate }) {
   const handlePlayVibe = () => {
     if (isThisVibePlaying) {
       togglePlay();
+    } else if (isThisVibeActive) {
+      togglePlay();
     } else {
-      playVibe(vibe.id, false);
+      playVibe(vibe.id, false, 0);
     }
   };
 
   const handleShuffleVibe = () => {
-    playVibe(vibe.id, true);
+    if (isThisVibeActive) {
+      toggleShuffle();
+    } else {
+      playVibe(vibe.id, true, 0);
+    }
+  };
+
+  const handleToggleRepeat = () => {
+    toggleRepeat();
   };
 
   const handleSelectTrack = (track) => {
     if (currentTrack?.id === track.id) {
       togglePlay();
     } else {
-      playTrack(track, tracks, {
+      // In-session track selection: keep existing queue order if active vibe session,
+      // or initialize fresh vibe session queue with canonical tracks
+      playTrack(track, isThisVibeActive ? queue : tracks, {
+        type: 'vibe',
         id: vibe.id,
         name: vibe.name,
         emoji: vibe.emoji,
@@ -176,6 +196,22 @@ export default function VibePage({ vibeId, onNavigate }) {
               <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
                 {tracks.length} curated tracks • {formatDuration(totalDurationSeconds)}
               </span>
+              {isThisVibeActive && currentTrackIndex !== -1 && (
+                <>
+                  <span className="text-xs text-white/50">•</span>
+                  <span
+                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 animate-fadeIn"
+                    style={{
+                      backgroundColor: `${vibe.colors.primary}25`,
+                      color: vibe.colors.primary,
+                      border: `1px solid ${vibe.colors.primary}50`,
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: vibe.colors.primary }} />
+                    {isThisVibePlaying ? 'Playing' : 'Paused'} • Track {currentTrackIndex + 1} of {tracks.length}
+                  </span>
+                </>
+              )}
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-display font-extrabold tracking-tight mb-2">
@@ -190,7 +226,7 @@ export default function VibePage({ vibeId, onNavigate }) {
               {vibe.description}
             </p>
 
-            {/* Play & Shuffle CTA Buttons */}
+            {/* Play, Shuffle, Repeat CTA Buttons */}
             <div className="flex flex-wrap items-center gap-3.5">
               <GlassButton
                 variant="primary"
@@ -205,7 +241,7 @@ export default function VibePage({ vibeId, onNavigate }) {
                   color: '#ffffff',
                 }}
               >
-                {isThisVibePlaying ? 'PAUSE VIBE' : 'PLAY VIBE'}
+                {isThisVibePlaying ? 'PAUSE VIBE' : (isThisVibeActive ? 'RESUME VIBE' : 'PLAY VIBE')}
               </GlassButton>
 
               <GlassButton
@@ -214,8 +250,28 @@ export default function VibePage({ vibeId, onNavigate }) {
                 icon={Shuffle}
                 onClick={handleShuffleVibe}
                 className="px-5"
+                style={{
+                  color: isThisVibeActive && shuffle ? vibe.colors.primary : undefined,
+                  borderColor: isThisVibeActive && shuffle ? `${vibe.colors.primary}80` : undefined,
+                }}
+                title={isThisVibeActive && shuffle ? 'Shuffle is ON (click to disable)' : 'Shuffle Vibe sequence'}
               >
-                SHUFFLE
+                {isThisVibeActive && shuffle ? 'SHUFFLE ON' : 'SHUFFLE'}
+              </GlassButton>
+
+              <GlassButton
+                variant="secondary"
+                size="lg"
+                icon={repeat === 'track' ? Repeat1 : Repeat}
+                onClick={handleToggleRepeat}
+                className="px-4"
+                style={{
+                  color: isThisVibeActive && repeat !== 'off' ? vibe.colors.primary : undefined,
+                  borderColor: isThisVibeActive && repeat !== 'off' ? `${vibe.colors.primary}80` : undefined,
+                }}
+                title={`Repeat mode: ${repeat.toUpperCase()} (click to cycle: Vibe -> 1 -> Off)`}
+              >
+                {repeat === 'track' ? 'REPEAT 1' : (repeat === 'off' ? 'REPEAT OFF' : 'REPEAT VIBE')}
               </GlassButton>
 
               <GlassButton
@@ -309,20 +365,27 @@ export default function VibePage({ vibeId, onNavigate }) {
                   {/* Track Index or Animated Waveform Indicator */}
                   <div className="w-7 text-center shrink-0 flex items-center justify-center">
                     {isRowPlaying ? (
-                      <div className="flex items-end gap-0.5 h-4">
-                        <span className="w-1 bg-purple-400 rounded-full animate-bounce h-3" style={{ backgroundColor: vibe.colors.primary }} />
-                        <span className="w-1 bg-purple-400 rounded-full animate-bounce h-4 delay-75" style={{ backgroundColor: vibe.colors.primary }} />
-                        <span className="w-1 bg-purple-400 rounded-full animate-bounce h-2 delay-150" style={{ backgroundColor: vibe.colors.primary }} />
-                      </div>
+                      <>
+                        <div className="flex items-end gap-0.5 h-4 group-hover:hidden">
+                          <span className="w-1 rounded-full animate-bounce h-3" style={{ backgroundColor: vibe.colors.primary }} />
+                          <span className="w-1 rounded-full animate-bounce h-4 delay-75" style={{ backgroundColor: vibe.colors.primary }} />
+                          <span className="w-1 rounded-full animate-bounce h-2 delay-150" style={{ backgroundColor: vibe.colors.primary }} />
+                        </div>
+                        <Pause className="w-3.5 h-3.5 hidden group-hover:block transition-colors fill-current" style={{ color: vibe.colors.primary }} />
+                      </>
+                    ) : isCurrent ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full group-hover:hidden" style={{ backgroundColor: vibe.colors.primary }} />
+                        <Play className="w-3.5 h-3.5 hidden group-hover:block transition-colors fill-current" style={{ color: vibe.colors.primary }} />
+                      </>
                     ) : (
-                      <span className="text-xs font-mono text-white/40 group-hover:hidden">
-                        {idx + 1}
-                      </span>
+                      <>
+                        <span className="text-xs font-mono text-white/40 group-hover:hidden">
+                          {idx + 1}
+                        </span>
+                        <Play className="w-3.5 h-3.5 hidden group-hover:block transition-colors text-white/80 fill-current" />
+                      </>
                     )}
-                    <Play
-                      className={`w-3.5 h-3.5 hidden group-hover:block transition-colors ${isCurrent ? 'text-purple-400' : 'text-white/80'}`}
-                      style={{ color: isCurrent ? vibe.colors.primary : undefined }}
-                    />
                   </div>
 
                   {/* Artwork Thumbnail */}
@@ -417,12 +480,12 @@ export default function VibePage({ vibeId, onNavigate }) {
             <ListMusic className="w-3.5 h-3.5" style={{ color: vibe.colors.primary }} />
             <span>
               {isThisVibeActive 
-                ? `Currently playing from this world • Track ${queueIndex + 1} of ${queue.length}`
-                : `Sequence ready • ${tracks.length} tracks available in session`
+                ? `Active Vibe Session • Track ${currentTrackIndex !== -1 ? currentTrackIndex + 1 : 1} of ${tracks.length}${shuffle ? ' (Shuffled)' : ''}${repeat !== 'off' ? ` • Repeat ${repeat.toUpperCase()}` : ''}`
+                : `Sequence ready • ${tracks.length} curated tracks in session`
               }
             </span>
           </div>
-          <span className="text-[11px]">
+          <span className="text-[11px] font-mono">
             {isThisVibePlaying ? 'Active Session' : 'Ready to Stream'}
           </span>
         </div>

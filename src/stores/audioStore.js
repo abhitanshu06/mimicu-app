@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { audioEngine } from '../utils/audioEngine.js';
 import { TRACKS, getTracksForVibe } from '../data/tracks.js';
 import { VIBES } from '../config/vibes.js';
+import { useVibeStore } from './vibeStore.js';
 
 /**
  * Fisher-Yates Array Shuffle
@@ -41,7 +42,7 @@ export const useAudioStore = create((set, get) => {
   };
 
   audioEngine.onEndedCallback = () => {
-    const { repeat, queue, queueIndex, shuffle, originalQueue } = get();
+    const { repeat, queue, queueIndex, shuffle, originalQueue, playbackContext } = get();
 
     if (repeat === 'track') {
       // Repeat current track
@@ -54,21 +55,47 @@ export const useAudioStore = create((set, get) => {
     if (queueIndex < queue.length - 1) {
       // Advance to next song in queue
       get().next();
-    } else if (repeat === 'queue') {
-      // Reached end of queue with Repeat Queue ON
+    } else if (repeat === 'queue' || repeat === 'vibe') {
+      // Reached end of queue with Repeat Queue / Repeat Vibe ON
       if (shuffle) {
         const reshuffled = shuffleTracks(originalQueue);
-        set({ queue: reshuffled, queueIndex: 0 });
-        get().playTrack(reshuffled[0]);
+        const firstTrack = reshuffled[0];
+        set({
+          queue: reshuffled,
+          queueIndex: 0,
+          currentTrack: firstTrack,
+          currentTime: 0,
+          progress: 0,
+          playing: true,
+        });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.getState().syncTrackChange(firstTrack, 0);
+        }
+        recordHistory(firstTrack);
+        audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
       } else {
-        set({ queueIndex: 0 });
-        get().playTrack(queue[0]);
+        const firstTrack = queue[0];
+        set({
+          queueIndex: 0,
+          currentTrack: firstTrack,
+          currentTime: 0,
+          progress: 0,
+          playing: true,
+        });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.getState().syncTrackChange(firstTrack, 0);
+        }
+        recordHistory(firstTrack);
+        audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
       }
     } else {
-      // End of queue with repeat OFF -> Stop playback
+      // End of queue with repeat OFF -> Stop playback gracefully
       set({ playing: false, progress: 0, currentTime: 0 });
       audioEngine.pause();
       audioEngine.seek(0);
+      if (playbackContext?.type === 'vibe') {
+        useVibeStore.getState().setVibePlaybackActive(false);
+      }
     }
   };
 
@@ -140,13 +167,23 @@ export const useAudioStore = create((set, get) => {
     // Likes state
     likedTrackIds: initialLikedTracks,
 
-    // Modes: 'off' | 'queue' | 'track'
+    // Modes: 'off' | 'queue' | 'vibe' | 'track'
     shuffle: false,
-    repeat: 'queue', // canonical repeat mode: 'off' | 'queue' | 'track'
+    repeat: 'vibe', // canonical repeat mode: 'off' | 'queue' | 'vibe' | 'track'
 
-    // Vibe Context
+    // Playback Context Architecture (Section 12)
+    playbackContext: {
+      type: 'vibe',
+      id: initialVibeId,
+      name: VIBES[initialVibeId]?.name || '3 AM Night Walk',
+      emoji: VIBES[initialVibeId]?.emoji || '🌃',
+      page: `/vibes/${initialVibeId}`,
+    },
+
+    // Vibe Context (backward-compatibility)
     currentVibe: VIBES[initialVibeId]?.name || '3 AM Night Walk',
     currentVibeContext: {
+      type: 'vibe',
       id: initialVibeId,
       name: VIBES[initialVibeId]?.name || '3 AM Night Walk',
       emoji: VIBES[initialVibeId]?.emoji || '🌃',
@@ -160,9 +197,10 @@ export const useAudioStore = create((set, get) => {
      * Start playing a specific track
      * @param {Object} track
      * @param {Array|null} customQueue
-     * @param {Object|null} vibeContext
+     * @param {Object|null} context - { type: 'vibe' | 'playlist' | 'search' | 'library', ... }
      */
-    playTrack: (track, customQueue = null, vibeContext = null) => {
+    playTrack: (track, customQueue = null, context = null) => {
+      if (!track) return;
       const state = get();
       let activeQueue = customQueue || state.queue;
       let newOriginalQueue = customQueue || state.originalQueue;
@@ -174,7 +212,13 @@ export const useAudioStore = create((set, get) => {
       }
 
       const idx = activeQueue.findIndex((t) => t.id === track.id);
-      const newVibeContext = vibeContext || state.currentVibeContext;
+      const isVibe = context?.type === 'vibe';
+      const resolvedContext = context || (isVibe ? state.currentVibeContext : {
+        type: 'search',
+        name: 'Single Playback',
+        emoji: '🎵',
+        page: '/search',
+      });
 
       set({
         currentTrack: track,
@@ -186,30 +230,50 @@ export const useAudioStore = create((set, get) => {
         currentTime: 0,
         duration: track.duration || 200,
         error: null,
-        currentVibe: newVibeContext?.name || state.currentVibe,
-        currentVibeContext: newVibeContext,
+        playbackContext: resolvedContext,
+        currentVibe: isVibe ? (resolvedContext.name || state.currentVibe) : state.currentVibe,
+        currentVibeContext: isVibe ? resolvedContext : null,
       });
+
+      // Context separation: if non-vibe context, clear vibe session to prevent corruption
+      if (!isVibe) {
+        useVibeStore.getState().clearVibePlayback();
+      } else {
+        useVibeStore.getState().syncTrackChange(track, idx !== -1 ? idx : 0);
+      }
 
       recordHistory(track);
       audioEngine.loadAndPlay(track.audioUrl, track.duration);
     },
 
     /**
-     * Play an entire Vibe's collection from start or with shuffle
+     * Play an entire Vibe's collection from start, specific index, or with shuffle
      * @param {string} vibeId
      * @param {boolean} shouldShuffle
+     * @param {number} startIndex
      */
-    playVibe: (vibeId, shouldShuffle = false) => {
+    playVibe: (vibeId, shouldShuffle = false, startIndex = 0) => {
       const vibe = VIBES[vibeId];
       if (!vibe) return;
 
       const vibeTracks = getTracksForVibe(vibeId);
       if (!vibeTracks.length) return;
 
-      const queue = shouldShuffle ? shuffleTracks(vibeTracks) : [...vibeTracks];
-      const startTrack = queue[0];
+      const validStartIndex = (startIndex >= 0 && startIndex < vibeTracks.length) ? startIndex : 0;
+      const startSelectedTrack = vibeTracks[validStartIndex] || vibeTracks[0];
 
+      let queue = [...vibeTracks];
+      let queueIdx = validStartIndex;
+
+      if (shouldShuffle) {
+        // Pin selected track at index 0, randomize remainder via Fisher-Yates
+        queue = shuffleTracks(vibeTracks, startSelectedTrack);
+        queueIdx = 0;
+      }
+
+      const activeTrack = queue[queueIdx];
       const vibeContext = {
+        type: 'vibe',
         id: vibeId,
         name: vibe.name,
         emoji: vibe.emoji,
@@ -217,22 +281,29 @@ export const useAudioStore = create((set, get) => {
       };
 
       set({
-        currentTrack: startTrack,
+        currentTrack: activeTrack,
         queue,
         originalQueue: [...vibeTracks],
-        queueIndex: 0,
+        queueIndex: queueIdx,
         shuffle: shouldShuffle,
+        repeat: get().repeat === 'track' ? 'track' : (get().repeat === 'off' ? 'off' : 'vibe'),
         playing: true,
         progress: 0,
         currentTime: 0,
-        duration: startTrack.duration || 200,
+        duration: activeTrack.duration || 200,
         error: null,
+        playbackContext: vibeContext,
         currentVibe: vibe.name,
         currentVibeContext: vibeContext,
       });
 
-      recordHistory(startTrack);
-      audioEngine.loadAndPlay(startTrack.audioUrl, startTrack.duration);
+      // Synchronize vibeStore session
+      useVibeStore.getState().setVibePlaylist(vibeTracks);
+      useVibeStore.getState().syncTrackChange(activeTrack, validStartIndex);
+      useVibeStore.getState().setVibePlaybackActive(true);
+
+      recordHistory(activeTrack);
+      audioEngine.loadAndPlay(activeTrack.audioUrl, activeTrack.duration);
     },
 
     /**
@@ -265,26 +336,54 @@ export const useAudioStore = create((set, get) => {
      * Skip to next track in queue
      */
     next: () => {
-      const { queue, queueIndex, repeat, shuffle, originalQueue } = get();
+      const { queue, queueIndex, repeat, shuffle, originalQueue, playbackContext } = get();
       if (!queue.length) return;
 
       if (queueIndex < queue.length - 1) {
         const nextIdx = queueIndex + 1;
         const nextTrack = queue[nextIdx];
-        set({ queueIndex: nextIdx, currentTrack: nextTrack, progress: 0, currentTime: 0, playing: true });
+        set({
+          queueIndex: nextIdx,
+          currentTrack: nextTrack,
+          progress: 0,
+          currentTime: 0,
+          playing: true,
+        });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.getState().syncTrackChange(nextTrack, nextIdx);
+        }
         recordHistory(nextTrack);
         audioEngine.loadAndPlay(nextTrack.audioUrl, nextTrack.duration);
-      } else if (repeat === 'queue') {
+      } else if (repeat === 'queue' || repeat === 'vibe') {
         // Wrap back to beginning
         if (shuffle) {
           const reshuffled = shuffleTracks(originalQueue);
           const firstTrack = reshuffled[0];
-          set({ queue: reshuffled, queueIndex: 0, currentTrack: firstTrack, progress: 0, currentTime: 0, playing: true });
+          set({
+            queue: reshuffled,
+            queueIndex: 0,
+            currentTrack: firstTrack,
+            progress: 0,
+            currentTime: 0,
+            playing: true,
+          });
+          if (playbackContext?.type === 'vibe') {
+            useVibeStore.getState().syncTrackChange(firstTrack, 0);
+          }
           recordHistory(firstTrack);
           audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
         } else {
           const firstTrack = queue[0];
-          set({ queueIndex: 0, currentTrack: firstTrack, progress: 0, currentTime: 0, playing: true });
+          set({
+            queueIndex: 0,
+            currentTrack: firstTrack,
+            progress: 0,
+            currentTime: 0,
+            playing: true,
+          });
+          if (playbackContext?.type === 'vibe') {
+            useVibeStore.getState().syncTrackChange(firstTrack, 0);
+          }
           recordHistory(firstTrack);
           audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
         }
@@ -293,14 +392,18 @@ export const useAudioStore = create((set, get) => {
         set({ playing: false, progress: 0, currentTime: 0 });
         audioEngine.pause();
         audioEngine.seek(0);
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.getState().setVibePlaybackActive(false);
+        }
       }
     },
 
     /**
      * Go to previous track or restart current track
+     * (Plays previous track if currentTime <= 3s, else restarts current track at 0:00)
      */
     previous: () => {
-      const { queue, queueIndex, currentTime, repeat } = get();
+      const { queue, queueIndex, currentTime, repeat, playbackContext } = get();
       if (!queue.length) return;
 
       // If played > 3 seconds, restart current track
@@ -313,13 +416,31 @@ export const useAudioStore = create((set, get) => {
       if (queueIndex > 0) {
         const prevIdx = queueIndex - 1;
         const prevTrack = queue[prevIdx];
-        set({ queueIndex: prevIdx, currentTrack: prevTrack, progress: 0, currentTime: 0, playing: true });
+        set({
+          queueIndex: prevIdx,
+          currentTrack: prevTrack,
+          progress: 0,
+          currentTime: 0,
+          playing: true,
+        });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.getState().syncTrackChange(prevTrack, prevIdx);
+        }
         recordHistory(prevTrack);
         audioEngine.loadAndPlay(prevTrack.audioUrl, prevTrack.duration);
-      } else if (repeat === 'queue') {
+      } else if (repeat === 'queue' || repeat === 'vibe') {
         const lastIdx = queue.length - 1;
         const lastTrack = queue[lastIdx];
-        set({ queueIndex: lastIdx, currentTrack: lastTrack, progress: 0, currentTime: 0, playing: true });
+        set({
+          queueIndex: lastIdx,
+          currentTrack: lastTrack,
+          progress: 0,
+          currentTime: 0,
+          playing: true,
+        });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.getState().syncTrackChange(lastTrack, lastIdx);
+        }
         recordHistory(lastTrack);
         audioEngine.loadAndPlay(lastTrack.audioUrl, lastTrack.duration);
       } else {
@@ -362,7 +483,7 @@ export const useAudioStore = create((set, get) => {
      * Reorders queue non-destructively, maintaining current track at index 0
      */
     toggleShuffle: () => {
-      const { shuffle, currentTrack, originalQueue } = get();
+      const { shuffle, currentTrack, originalQueue, playbackContext } = get();
       const nextShuffle = !shuffle;
 
       if (nextShuffle) {
@@ -373,6 +494,9 @@ export const useAudioStore = create((set, get) => {
           queue: newQueue,
           queueIndex: 0,
         });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.setState({ vibeShuffle: true });
+        }
       } else {
         // Disable shuffle: restore original order, point index to current track
         const restored = [...originalQueue];
@@ -382,25 +506,37 @@ export const useAudioStore = create((set, get) => {
           queue: restored,
           queueIndex: idx !== -1 ? idx : 0,
         });
+        if (playbackContext?.type === 'vibe') {
+          useVibeStore.setState({ vibeShuffle: false });
+        }
       }
     },
 
     /**
-     * Set explicit repeat mode: 'off' | 'queue' | 'track'
+     * Set explicit repeat mode: 'off' | 'queue' | 'vibe' | 'track'
      */
     setRepeatMode: (mode) => {
+      const { playbackContext } = get();
       set({ repeat: mode });
+      if (playbackContext?.type === 'vibe') {
+        useVibeStore.setState({ vibeRepeatMode: mode === 'queue' ? 'vibe' : mode });
+      }
     },
 
     /**
-     * Cycle Repeat mode: 'queue' -> 'track' -> 'off'
+     * Cycle Repeat mode: 'queue'/'vibe' -> 'track' -> 'off'
      */
     toggleRepeat: () => {
-      const modes = ['queue', 'track', 'off'];
-      const current = get().repeat;
-      const nextIdx = (modes.indexOf(current) + 1) % modes.length;
+      const { repeat, playbackContext } = get();
+      const isVibe = playbackContext?.type === 'vibe';
+      const modes = isVibe ? ['vibe', 'track', 'off'] : ['queue', 'track', 'off'];
+      const normalizedCurrent = isVibe && repeat === 'queue' ? 'vibe' : (!isVibe && repeat === 'vibe' ? 'queue' : repeat);
+      const nextIdx = (modes.indexOf(normalizedCurrent) + 1) % modes.length;
       const nextMode = modes[nextIdx];
       set({ repeat: nextMode });
+      if (isVibe) {
+        useVibeStore.setState({ vibeRepeatMode: nextMode });
+      }
     },
 
     /**
