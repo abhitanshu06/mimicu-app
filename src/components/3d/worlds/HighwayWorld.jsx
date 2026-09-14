@@ -59,24 +59,22 @@ export default function HighwayWorld({ vibe }) {
     }
 
     // 2. Animate forward traffic (moving away into distance)
-    forwardCarRefs.current.forEach((car, i) => {
+    for (let i = 0; i < forwardCarRefs.current.length; i++) {
+      const car = forwardCarRefs.current[i];
       if (car) {
         car.position.z -= delta * forwardVehicles[i].speed;
-        if (car.position.z < -36) {
-          car.position.z = -7;
-        }
+        if (car.position.z < -36) car.position.z = -7;
       }
-    });
+    }
 
     // 3. Animate oncoming traffic (rushing towards camera)
-    oncomingCarRefs.current.forEach((car, i) => {
+    for (let i = 0; i < oncomingCarRefs.current.length; i++) {
+      const car = oncomingCarRefs.current[i];
       if (car) {
         car.position.z += delta * oncomingVehicles[i].speed;
-        if (car.position.z > 5) {
-          car.position.z = -36;
-        }
+        if (car.position.z > 5) car.position.z = -36;
       }
-    });
+    }
 
     // 4. Subtle vehicle vibration & gentle steering sway
     if (cockpitRef.current) {

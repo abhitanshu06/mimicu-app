@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getSoftParticleTexture, getSoftSmokeTexture } from '../../../utils/particleTextures';
@@ -53,8 +53,17 @@ export default function CelestialWorld({ vibe }) {
   }, []);
 
   const constellationGeometry = useMemo(() => {
-    return new THREE.BufferGeometry().setFromPoints(constellationPoints);
+    const geo = new THREE.BufferGeometry().setFromPoints(constellationPoints);
+    return geo;
   }, [constellationPoints]);
+
+  // Dispose the manually-created BufferGeometry on unmount to prevent GPU memory leaks.
+  useEffect(() => {
+    return () => {
+      constellationGeometry?.dispose();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFrame((state, delta) => {
     const time = state.clock.elapsedTime;

@@ -33,10 +33,21 @@ const CodingLateNightWorld = React.lazy(() => import('./worlds/CodingLateNightWo
  *   while the new world's chunk is fetching — no dark flash on Vibe switches.
  */
 export default function SceneManager() {
-  const activeVibe = useVibeStore((state) => state.activeVibe);
-  const targetVibe = useVibeStore((state) => state.targetVibe);
-  const isTransitioning = useVibeStore((state) => state.isTransitioning);
-  const transitionProgress = useVibeStore((state) => state.transitionProgress);
+  // Single combined selector: avoids 4 separate Zustand subscriptions (4→1 re-render per state change)
+  const { activeVibe, targetVibe, isTransitioning, transitionProgress } = useVibeStore(
+    (state) => ({
+      activeVibe: state.activeVibe,
+      targetVibe: state.targetVibe,
+      isTransitioning: state.isTransitioning,
+      transitionProgress: state.transitionProgress,
+    }),
+    // shallow equality: only re-render when any of the four values actually changes
+    (a, b) =>
+      a.activeVibe === b.activeVibe &&
+      a.targetVibe === b.targetVibe &&
+      a.isTransitioning === b.isTransitioning &&
+      a.transitionProgress === b.transitionProgress
+  );
 
   const groupRef = useRef();
 

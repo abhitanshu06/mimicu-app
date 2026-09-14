@@ -64,10 +64,11 @@ export default function RainWindowWorld({ vibe }) {
     return [pos, spd, sca];
   }, [dropletCount]);
 
-  // 3. Mug steam particles
+  // 3. Mug steam particles — flat Float32Array layout for zero GC in the useFrame hot-loop
+  //    Fields: [life, speed, wobblePhase] per particle at [i*3], [i*3+1], [i*3+2]
   const [steamPositions, steamMeta] = useMemo(() => {
     const pos = new Float32Array(steamCount * 3);
-    const meta = [];
+    const meta = new Float32Array(steamCount * 3);
     const mugX = 1.35;
     const mugY = -1.25;
     const mugZ = 2.92;
@@ -77,11 +78,9 @@ export default function RainWindowWorld({ vibe }) {
       pos[i * 3] = mugX + (Math.random() - 0.5) * 0.03;
       pos[i * 3 + 1] = mugY + life * 0.45;
       pos[i * 3 + 2] = mugZ + (Math.random() - 0.5) * 0.03;
-      meta.push({
-        life,
-        speed: 0.16 + Math.random() * 0.1,
-        wobblePhase: Math.random() * Math.PI * 2,
-      });
+      meta[i * 3]     = life;                              // life
+      meta[i * 3 + 1] = 0.16 + Math.random() * 0.1;       // speed
+      meta[i * 3 + 2] = Math.random() * Math.PI * 2;      // wobblePhase
     }
     return [pos, meta];
   }, [steamCount]);
@@ -138,20 +137,20 @@ export default function RainWindowWorld({ vibe }) {
       dropletsRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
-    // C. Mug steam
+    // C. Mug steam — flat Float32Array access (no GC)
     if (mugSteamRef.current) {
       const pos = mugSteamRef.current.geometry.attributes.position.array;
       const mugX = 1.35;
       const mugY = -1.25;
       for (let i = 0; i < steamCount; i++) {
-        steamMeta[i].life += delta * steamMeta[i].speed;
-        if (steamMeta[i].life > 1.0) {
-          steamMeta[i].life = 0;
+        steamMeta[i * 3] += delta * steamMeta[i * 3 + 1];     // life += delta * speed
+        if (steamMeta[i * 3] > 1.0) {
+          steamMeta[i * 3] = 0;
           pos[i * 3] = mugX + (Math.random() - 0.5) * 0.03;
           pos[i * 3 + 1] = mugY;
         } else {
-          pos[i * 3 + 1] = mugY + steamMeta[i].life * 0.45;
-          pos[i * 3] = mugX + Math.sin(time * 2.2 + steamMeta[i].wobblePhase) * 0.015 * steamMeta[i].life;
+          pos[i * 3 + 1] = mugY + steamMeta[i * 3] * 0.45;
+          pos[i * 3] = mugX + Math.sin(time * 2.2 + steamMeta[i * 3 + 2]) * 0.015 * steamMeta[i * 3];
         }
       }
       mugSteamRef.current.geometry.attributes.position.needsUpdate = true;

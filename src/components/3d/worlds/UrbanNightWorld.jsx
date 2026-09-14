@@ -5,6 +5,7 @@ import { getSoftSmokeTexture } from '../../../utils/particleTextures';
 import TreeSilhouette from '../hybrid/TreeSilhouette';
 import { audioReactiveManager } from '../../../utils/audioReactiveManager';
 
+
 /**
  * UrbanNightWorld
  * 
@@ -18,21 +19,13 @@ import { audioReactiveManager } from '../../../utils/audioReactiveManager';
  * - ZERO primitive monolithic cubes or random floating boxes.
  */
 /**
- * ReactiveStreetlamp
- * Amber streetlamp with audio-reactive bass pulse.
+ * StaticStreetlamp
+ * Amber streetlamp — receives a lightRef from parent so all 8 lamp lights
+ * are driven by a single useFrame in the parent world (no per-instance hooks).
  */
-function ReactiveStreetlamp({ lamp, primaryColor }) {
-  const lightRef = useRef();
+function StaticStreetlamp({ lamp, primaryColor, lightRef }) {
   const armOffset = lamp.side === -1 ? 0.35 : -0.35;
   const bulbOffset = lamp.side === -1 ? 0.65 : -0.65;
-
-  useFrame(() => {
-    if (lightRef.current) {
-      const audio = audioReactiveManager.getValues();
-      const pulse = audio.bass * (audio.profile?.lightResponse ?? 0.32) * 1.1;
-      lightRef.current.intensity = 2.5 + pulse;
-    }
-  });
 
   return (
     <group position={[lamp.x, -1.5, lamp.z]}>
@@ -76,6 +69,8 @@ function ReactiveStreetlamp({ lamp, primaryColor }) {
 export default function UrbanNightWorld({ vibe }) {
   const mistPointsRef = useRef();
   const beaconRef = useRef();
+  // One ref per lamp light — avoids 8 separate useFrame callbacks
+  const lampLightRefs = useRef(Array.from({ length: 8 }, () => ({ current: null })));
 
   const primaryColor = vibe?.colors?.primary || '#f59e0b';
   const secondaryColor = vibe?.colors?.secondary || '#38bdf8';
@@ -214,6 +209,14 @@ export default function UrbanNightWorld({ vibe }) {
         }
       }
       mistPointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // Drive all 8 streetlamp lights from a single useFrame (collapsed from 8 hooks)
+    const lampPulse = audio.bass * (audio.profile?.lightResponse ?? 0.32) * 1.1;
+    const lampIntensity = 2.5 + lampPulse;
+    const lampRefs = lampLightRefs.current;
+    for (let i = 0; i < lampRefs.length; i++) {
+      if (lampRefs[i].current) lampRefs[i].current.intensity = lampIntensity;
     }
 
     // Blinking red aviation warning beacons on distant towers
@@ -359,7 +362,7 @@ export default function UrbanNightWorld({ vibe }) {
           3. AMBER GOOSENECK STREETLAMPS (Both sides)
       ======================================================== */}
       {streetlamps.map((lamp, idx) => (
-        <ReactiveStreetlamp key={idx} lamp={lamp} primaryColor={primaryColor} />
+        <StaticStreetlamp key={idx} lamp={lamp} primaryColor={primaryColor} lightRef={lampLightRefs.current[idx]} />
       ))}
 
       {/* ========================================================

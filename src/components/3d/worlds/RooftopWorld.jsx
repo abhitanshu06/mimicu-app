@@ -24,6 +24,8 @@ export default function RooftopWorld({ vibe }) {
   const bokehRef = useRef();
   const stringLightsRef = useRef();
   const terraceLightRef = useRef();
+  // Pre-cached material refs for fairy lights — avoids per-frame scene graph traversal
+  const fairyMaterialRefs = useRef(Array.from({ length: 18 }, () => ({ current: null })));
 
   const primaryColor = vibe?.colors?.primary || '#ec4899';
   const secondaryColor = vibe?.colors?.secondary || '#38bdf8';
@@ -115,12 +117,12 @@ export default function RooftopWorld({ vibe }) {
     }
 
     // B. Fairy lights subtle breathing twinkle with audio treble shimmer
-    if (stringLightsRef.current) {
-      stringLightsRef.current.children.forEach((child, i) => {
-        if (child.material) {
-          child.material.opacity = Math.min(1, 0.75 + Math.sin(time * 1.8 + i) * 0.2 + audio.treble * 0.15);
-        }
-      });
+    // Direct for-loop over pre-cached material refs — no closure, no scene graph traversal
+    const fairyMats = fairyMaterialRefs.current;
+    for (let i = 0; i < fairyMats.length; i++) {
+      if (fairyMats[i].current) {
+        fairyMats[i].current.opacity = Math.min(1, 0.75 + Math.sin(time * 1.8 + i) * 0.2 + audio.treble * 0.15);
+      }
     }
 
     // C. Distant bokeh slight drift
@@ -199,10 +201,10 @@ export default function RooftopWorld({ vibe }) {
       <group ref={stringLightsRef}>
         {fairyLights.map((light, idx) => (
           <group key={idx} position={[light.x, light.y, light.z]}>
-            {/* Glowing Bulb */}
+            {/* Glowing Bulb — material ref cached for zero-GC per-frame opacity updates */}
             <mesh>
               <sphereGeometry args={[0.045, 12, 12]} />
-              <meshBasicMaterial color="#fef08a" transparent opacity={0.85} />
+              <meshBasicMaterial ref={fairyMaterialRefs.current[idx]} color="#fef08a" transparent opacity={0.85} />
             </mesh>
             {/* Socket Cap */}
             <mesh position={[0, 0.04, 0]}>

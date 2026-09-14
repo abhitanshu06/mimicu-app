@@ -42,10 +42,11 @@ export default function MinimalSanctuaryWorld({ vibe }) {
 
   const softDustTexture = useMemo(() => getSoftParticleTexture(), []);
 
-  // 2. Gentle Steam from Coffee Mug
+  // 2. Gentle Steam from Coffee Mug — flat Float32Array for zero GC in useFrame
+  //    Fields: [life, speed, wobblePhase] at [i*3], [i*3+1], [i*3+2]
   const [steamPositions, steamMeta] = useMemo(() => {
     const pos = new Float32Array(steamCount * 3);
-    const meta = [];
+    const meta = new Float32Array(steamCount * 3);
     const cupX = -1.55;
     const cupY = -0.85;
     const cupZ = 0.85;
@@ -55,11 +56,9 @@ export default function MinimalSanctuaryWorld({ vibe }) {
       pos[i * 3] = cupX + (Math.random() - 0.5) * 0.04;
       pos[i * 3 + 1] = cupY + life * 0.45;
       pos[i * 3 + 2] = cupZ + (Math.random() - 0.5) * 0.04;
-      meta.push({
-        life,
-        speed: 0.18 + Math.random() * 0.12,
-        wobblePhase: Math.random() * Math.PI * 2,
-      });
+      meta[i * 3]     = life;                            // life
+      meta[i * 3 + 1] = 0.18 + Math.random() * 0.12;    // speed
+      meta[i * 3 + 2] = Math.random() * Math.PI * 2;    // wobblePhase
     }
     return [pos, meta];
   }, [steamCount]);
@@ -85,20 +84,20 @@ export default function MinimalSanctuaryWorld({ vibe }) {
       dustRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
-    // B. Animate gentle rising coffee steam
+    // B. Animate gentle rising coffee steam — Float32Array access (no GC)
     if (coffeeSteamRef.current) {
       const pos = coffeeSteamRef.current.geometry.attributes.position.array;
       const cupX = -1.55;
       const cupY = -0.85;
       for (let i = 0; i < steamCount; i++) {
-        steamMeta[i].life += delta * steamMeta[i].speed;
-        if (steamMeta[i].life > 1.0) {
-          steamMeta[i].life = 0;
+        steamMeta[i * 3] += delta * steamMeta[i * 3 + 1];    // life += delta * speed
+        if (steamMeta[i * 3] > 1.0) {
+          steamMeta[i * 3] = 0;
           pos[i * 3] = cupX + (Math.random() - 0.5) * 0.04;
           pos[i * 3 + 1] = cupY;
         } else {
-          pos[i * 3 + 1] = cupY + steamMeta[i].life * 0.55;
-          pos[i * 3] = cupX + Math.sin(time * 2.0 + steamMeta[i].wobblePhase) * 0.02 * steamMeta[i].life;
+          pos[i * 3 + 1] = cupY + steamMeta[i * 3] * 0.55;
+          pos[i * 3] = cupX + Math.sin(time * 2.0 + steamMeta[i * 3 + 2]) * 0.02 * steamMeta[i * 3];
         }
       }
       coffeeSteamRef.current.geometry.attributes.position.needsUpdate = true;
