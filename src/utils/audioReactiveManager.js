@@ -120,6 +120,7 @@ class AudioReactiveManager {
       this.current.profile = getAudioReactiveProfile(vibeId);
       this.current.vibeId = vibeId;
     }
+    const profile = this.current.profile || getAudioReactiveProfile(vibeId);
 
     // 2. Sample raw Web Audio telemetry
     const telemetry = audioEngine.getAudioTelemetry();

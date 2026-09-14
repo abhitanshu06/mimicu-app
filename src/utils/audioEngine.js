@@ -36,9 +36,17 @@ class AudioEngine {
     this.onErrorCallback = null;
     this.onLoadingCallback = null;
 
-    // Telemetry TypedArrays for Phase 5 (preallocated to avoid allocations in animation loops)
+    // Telemetry TypedArrays and cached result object (preallocated to avoid per-frame allocations)
     this.frequencyDataArray = new Uint8Array(128);
     this.timeDomainDataArray = new Uint8Array(256);
+    this.telemetryResult = {
+      frequencyDataArray: this.frequencyDataArray,
+      timeDomainDataArray: this.timeDomainDataArray,
+      bass: 0,
+      mid: 0,
+      treble: 0,
+      overallEnergy: 0,
+    };
 
     // Procedural Fallback Synthesizer state
     this.synthActive = false;
@@ -85,7 +93,20 @@ class AudioEngine {
       if (this.onLoadingCallback) this.onLoadingCallback(false);
     });
 
-    this.audioElement.addEventListener('error', (e) => {
+    this.audioElement.addEventListener('error', async (e) => {
+      if (this.fallbackUrl && this.fallbackUrl !== this.audioElement.src) {
+        console.warn('[AudioEngine] HTMLAudioElement error on primary stream, trying fallback URL:', this.fallbackUrl);
+        const fb = this.fallbackUrl;
+        this.fallbackUrl = null;
+        this.audioElement.src = fb;
+        try {
+          await this.audioElement.play();
+          this.isPlaying = true;
+          return;
+        } catch (fbErr) {
+          console.warn('[AudioEngine] Fallback URL failed:', fbErr);
+        }
+      }
       console.warn('[AudioEngine] HTMLAudioElement error, activating procedural ambient fallback:', e);
       if (this.onLoadingCallback) this.onLoadingCallback(false);
       this.startProceduralFallback();
@@ -183,12 +204,14 @@ class AudioEngine {
    * Load and play a track URL
    * @param {string} url - Audio stream URL
    * @param {number} fallbackDuration - Track duration in seconds
+   * @param {string|null} fallbackUrl - Optional secondary fallback URL
    */
-  async loadAndPlay(url, fallbackDuration = 200) {
+  async loadAndPlay(url, fallbackDuration = 200, fallbackUrl = null) {
     await this.ensureContextActive();
     this.stopProceduralFallback();
 
     this.currentUrl = url;
+    this.fallbackUrl = fallbackUrl;
     this.synthDuration = fallbackDuration || 200;
 
     if (!this.audioElement) {
@@ -204,7 +227,23 @@ class AudioEngine {
       this.isPlaying = true;
       if (this.onLoadingCallback) this.onLoadingCallback(false);
     } catch (err) {
-      console.warn('[AudioEngine] Playback failed on primary source, starting procedural ambient generator:', err);
+      if (this.fallbackUrl && this.fallbackUrl !== url) {
+        console.warn('[AudioEngine] Playback failed on primary source, trying fallback URL:', this.fallbackUrl);
+        const fb = this.fallbackUrl;
+        this.fallbackUrl = null;
+        try {
+          this.audioElement.src = fb;
+          this.audioElement.currentTime = 0;
+          await this.audioElement.play();
+          this.isPlaying = true;
+          if (this.onLoadingCallback) this.onLoadingCallback(false);
+          return;
+        } catch (fbErr) {
+          console.warn('[AudioEngine] Fallback URL failed, starting procedural ambient generator:', fbErr);
+        }
+      } else {
+        console.warn('[AudioEngine] Playback failed on primary source, starting procedural ambient generator:', err);
+      }
       if (this.onLoadingCallback) this.onLoadingCallback(false);
       this.startProceduralFallback();
     }
@@ -391,28 +430,28 @@ class AudioEngine {
       for (let i = 0; i < len; i++) totalSum += this.frequencyDataArray[i];
       const overallEnergy = Math.min(1, Math.max(0, totalSum / (len * 255)));
 
-      return {
-        frequencyDataArray: this.frequencyDataArray,
-        timeDomainDataArray: this.timeDomainDataArray,
-        bass,
-        mid,
-        treble,
-        overallEnergy,
-      };
+      this.telemetryResult.frequencyDataArray = this.frequencyDataArray;
+      this.telemetryResult.timeDomainDataArray = this.timeDomainDataArray;
+      this.telemetryResult.bass = bass;
+      this.telemetryResult.mid = mid;
+      this.telemetryResult.treble = treble;
+      this.telemetryResult.overallEnergy = overallEnergy;
+
+      return this.telemetryResult;
     }
 
     // When paused or stopped: return zero-energy state (audioReactiveManager lerps it smoothly)
     this.frequencyDataArray.fill(0);
     this.timeDomainDataArray.fill(128);
 
-    return {
-      frequencyDataArray: this.frequencyDataArray,
-      timeDomainDataArray: this.timeDomainDataArray,
-      bass: 0,
-      mid: 0,
-      treble: 0,
-      overallEnergy: 0,
-    };
+    this.telemetryResult.frequencyDataArray = this.frequencyDataArray;
+    this.telemetryResult.timeDomainDataArray = this.timeDomainDataArray;
+    this.telemetryResult.bass = 0;
+    this.telemetryResult.mid = 0;
+    this.telemetryResult.treble = 0;
+    this.telemetryResult.overallEnergy = 0;
+
+    return this.telemetryResult;
   }
 
   // =========================================================================

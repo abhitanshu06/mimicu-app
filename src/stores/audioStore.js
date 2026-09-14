@@ -3,6 +3,25 @@ import { audioEngine } from '../utils/audioEngine.js';
 import { TRACKS, getTracksForVibe } from '../data/tracks.js';
 import { VIBES } from '../config/vibes.js';
 import { useVibeStore } from './vibeStore.js';
+import {
+  getAudioStreamUrl,
+  likeTrackApi,
+  unlikeTrackApi,
+  recordRecentPlayApi,
+} from '../services/api/index.js';
+
+/**
+ * Resolves the primary audio streaming URL with fallback to track.audioUrl
+ * @param {Object} track
+ * @returns {string}
+ */
+function getPlayableUrl(track) {
+  if (!track) return '';
+  if (track.id) {
+    return getAudioStreamUrl(track.id);
+  }
+  return track.audioUrl || '';
+}
 
 /**
  * Fisher-Yates Array Shuffle
@@ -72,7 +91,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(firstTrack, 0);
         }
         recordHistory(firstTrack);
-        audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
+        audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
       } else {
         const firstTrack = queue[0];
         set({
@@ -86,7 +105,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(firstTrack, 0);
         }
         recordHistory(firstTrack);
-        audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
+        audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
       }
     } else {
       // End of queue with repeat OFF -> Stop playback gracefully
@@ -139,6 +158,10 @@ export const useAudioStore = create((set, get) => {
         console.warn('Could not persist history:', e);
       }
     }
+    // Async backend record
+    try {
+      recordRecentPlayApi(track.id).catch(() => {});
+    } catch (_) {}
   };
 
   // Initial default tracks queue
@@ -243,7 +266,7 @@ export const useAudioStore = create((set, get) => {
       }
 
       recordHistory(track);
-      audioEngine.loadAndPlay(track.audioUrl, track.duration);
+      audioEngine.loadAndPlay(getPlayableUrl(track), track.duration, track.audioUrl);
     },
 
     /**
@@ -303,7 +326,7 @@ export const useAudioStore = create((set, get) => {
       useVibeStore.getState().setVibePlaybackActive(true);
 
       recordHistory(activeTrack);
-      audioEngine.loadAndPlay(activeTrack.audioUrl, activeTrack.duration);
+      audioEngine.loadAndPlay(getPlayableUrl(activeTrack), activeTrack.duration, activeTrack.audioUrl);
     },
 
     /**
@@ -353,7 +376,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(nextTrack, nextIdx);
         }
         recordHistory(nextTrack);
-        audioEngine.loadAndPlay(nextTrack.audioUrl, nextTrack.duration);
+        audioEngine.loadAndPlay(getPlayableUrl(nextTrack), nextTrack.duration, nextTrack.audioUrl);
       } else if (repeat === 'queue' || repeat === 'vibe') {
         // Wrap back to beginning
         if (shuffle) {
@@ -371,7 +394,7 @@ export const useAudioStore = create((set, get) => {
             useVibeStore.getState().syncTrackChange(firstTrack, 0);
           }
           recordHistory(firstTrack);
-          audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
+          audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
         } else {
           const firstTrack = queue[0];
           set({
@@ -385,7 +408,7 @@ export const useAudioStore = create((set, get) => {
             useVibeStore.getState().syncTrackChange(firstTrack, 0);
           }
           recordHistory(firstTrack);
-          audioEngine.loadAndPlay(firstTrack.audioUrl, firstTrack.duration);
+          audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
         }
       } else {
         // Stop at end
@@ -427,7 +450,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(prevTrack, prevIdx);
         }
         recordHistory(prevTrack);
-        audioEngine.loadAndPlay(prevTrack.audioUrl, prevTrack.duration);
+        audioEngine.loadAndPlay(getPlayableUrl(prevTrack), prevTrack.duration, prevTrack.audioUrl);
       } else if (repeat === 'queue' || repeat === 'vibe') {
         const lastIdx = queue.length - 1;
         const lastTrack = queue[lastIdx];
@@ -442,7 +465,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(lastTrack, lastIdx);
         }
         recordHistory(lastTrack);
-        audioEngine.loadAndPlay(lastTrack.audioUrl, lastTrack.duration);
+        audioEngine.loadAndPlay(getPlayableUrl(lastTrack), lastTrack.duration, lastTrack.audioUrl);
       } else {
         audioEngine.seek(0);
         set({ currentTime: 0, progress: 0 });
@@ -555,7 +578,7 @@ export const useAudioStore = create((set, get) => {
         duration: track.duration || 200,
       });
       recordHistory(track);
-      audioEngine.loadAndPlay(track.audioUrl, track.duration);
+      audioEngine.loadAndPlay(getPlayableUrl(track), track.duration, track.audioUrl);
     },
 
     /**
@@ -576,9 +599,9 @@ export const useAudioStore = create((set, get) => {
     },
 
     /**
-     * Section 17: Local Like System
+     * Section 17: Like System with Cloud Sync
      */
-    toggleLike: (trackId) => {
+    toggleLike: async (trackId) => {
       if (!trackId) return;
       const currentLiked = get().likedTrackIds || [];
       const isAlreadyLiked = currentLiked.includes(trackId);
@@ -594,10 +617,55 @@ export const useAudioStore = create((set, get) => {
           console.warn('Could not persist liked tracks:', e);
         }
       }
+
+      // Backend sync
+      try {
+        if (isAlreadyLiked) {
+          await unlikeTrackApi(trackId);
+        } else {
+          await likeTrackApi(trackId);
+        }
+      } catch (_) {}
     },
 
     isLiked: (trackId) => {
       return (get().likedTrackIds || []).includes(trackId);
+    },
+
+    hydrateFromBackend: (library) => {
+      if (!library) return;
+      const updates = {};
+      if (Array.isArray(library.likedTrackIds)) {
+        updates.likedTrackIds = library.likedTrackIds;
+      }
+      if (Array.isArray(library.recentlyPlayed) && library.recentlyPlayed.length > 0) {
+        const resolved = library.recentlyPlayed
+          .map((item) => {
+            const id = typeof item === 'string' ? item : item.trackId;
+            return TRACKS.find((t) => t.id === id);
+          })
+          .filter(Boolean);
+        if (resolved.length > 0) {
+          updates.history = resolved;
+        }
+      }
+      set(updates);
+    },
+
+    resetToGuest: () => {
+      let guestLikes = [];
+      let guestHistory = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const l = localStorage.getItem('mimicu_liked_tracks');
+          if (l) guestLikes = JSON.parse(l);
+        } catch (_) {}
+        try {
+          const h = localStorage.getItem('mimicu_recently_played');
+          if (h) guestHistory = JSON.parse(h);
+        } catch (_) {}
+      }
+      set({ likedTrackIds: guestLikes, history: guestHistory });
     },
 
     openFullPlayer: () => set({ isFullPlayerOpen: true }),

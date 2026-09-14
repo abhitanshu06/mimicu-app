@@ -8,8 +8,11 @@ import EqualizerPage from './pages/EqualizerPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import ThemeSelector from './components/theme/ThemeSelector';
+import AuthModal from './components/auth/AuthModal';
 import AudioReactiveDebug from './components/dev/AudioReactiveDebug';
 import { useLibraryStore } from './stores/libraryStore';
+import { useAuthStore } from './stores/authStore';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 import VibePage from './pages/VibePage';
 
@@ -33,8 +36,10 @@ export default function App() {
     return window.location.pathname || '/';
   });
 
-  // Keep state synchronized with browser back/forward buttons
+  // Keep state synchronized with browser back/forward buttons and initialize auth
   useEffect(() => {
+    useAuthStore.getState().initAuth();
+
     const handlePopState = () => {
       setCurrentPath(window.location.pathname || '/');
     };
@@ -95,12 +100,16 @@ export default function App() {
         currentPath={currentPath} 
         onNavigate={handleNavigate}
       >
-        {renderCurrentPage()}
+        <ErrorBoundary key={currentPath}>
+          {renderCurrentPage()}
+        </ErrorBoundary>
         {/* Dev-only Audio-Reactive Debug HUD */}
         <AudioReactiveDebug />
       </AppShell>
       {/* Global Application Theme Selector Modal (Portals to body, z-[990]/z-[1000]) */}
       <ThemeSelector />
+      {/* Global Authentication Modal (Portals to body, z-[995]) */}
+      <AuthModal />
     </>
   );
 }

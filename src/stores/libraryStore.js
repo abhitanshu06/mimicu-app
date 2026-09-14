@@ -1,5 +1,15 @@
 import { create } from 'zustand';
 import { TRACKS } from '../data/tracks';
+import {
+  saveVibeApi,
+  unsaveVibeApi,
+  createUserPlaylistApi,
+  updateUserPlaylistApi,
+  deleteUserPlaylistApi,
+  addTrackToUserPlaylistApi,
+  removeTrackFromUserPlaylistApi,
+  reorderUserPlaylistTracksApi,
+} from '../services/api/index.js';
 
 const STORAGE_PLAYLISTS = 'mimicu_user_playlists';
 const STORAGE_SAVED_VIBES = 'mimicu_saved_vibes';
@@ -63,6 +73,30 @@ export const useLibraryStore = create((set, get) => {
     setActivePlaylistId: (id) => set({ activePlaylistId: id }),
 
     // ──────────────────────────────────────────────
+    // Backend Hydration & Reset
+    // ──────────────────────────────────────────────
+    hydrateFromBackend: (library) => {
+      if (!library) return;
+      const updates = {};
+      if (Array.isArray(library.savedVibeIds)) {
+        updates.savedVibeIds = library.savedVibeIds;
+      }
+      if (Array.isArray(library.playlists) && library.playlists.length > 0) {
+        updates.playlists = library.playlists.map((pl) => ({
+          ...pl,
+          coverArt: pl.cover || pl.coverArt,
+        }));
+      }
+      set(updates);
+    },
+
+    resetToGuest: () => {
+      const playlists = readFromStorage(STORAGE_PLAYLISTS, DEFAULT_STARTER_PLAYLISTS);
+      const savedVibes = readFromStorage(STORAGE_SAVED_VIBES, ['3-am-night-walk', 'coding-late-night', 'rainy-window-reading']);
+      set({ playlists, savedVibeIds: savedVibes });
+    },
+
+    // ──────────────────────────────────────────────
     // Playlists CRUD
     // ──────────────────────────────────────────────
 
@@ -73,7 +107,7 @@ export const useLibraryStore = create((set, get) => {
      * @param {string[]} initialTrackIds
      * @returns {string} newly created playlist id
      */
-    createPlaylist: (name, description = '', initialTrackIds = []) => {
+    createPlaylist: async (name, description = '', initialTrackIds = []) => {
       const id = `playlist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const gradients = [
         'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%)',
@@ -98,13 +132,24 @@ export const useLibraryStore = create((set, get) => {
       const updated = [newPlaylist, ...get().playlists];
       set({ playlists: updated, activePlaylistId: id });
       writeToStorage(STORAGE_PLAYLISTS, updated);
+
+      // Async backend sync if authenticated
+      try {
+        await createUserPlaylistApi({
+          name: newPlaylist.name,
+          description: newPlaylist.description,
+          cover: newPlaylist.coverArt,
+          trackIds: newPlaylist.trackIds,
+        });
+      } catch (_) {}
+
       return id;
     },
 
     /**
      * Rename or update playlist metadata
      */
-    renamePlaylist: (id, name, description) => {
+    renamePlaylist: async (id, name, description) => {
       const updated = get().playlists.map((pl) => {
         if (pl.id !== id) return pl;
         return {
@@ -116,22 +161,30 @@ export const useLibraryStore = create((set, get) => {
       });
       set({ playlists: updated });
       writeToStorage(STORAGE_PLAYLISTS, updated);
+
+      try {
+        await updateUserPlaylistApi(id, { name, description });
+      } catch (_) {}
     },
 
     /**
      * Delete playlist
      */
-    deletePlaylist: (id) => {
+    deletePlaylist: async (id) => {
       const updated = get().playlists.filter((pl) => pl.id !== id);
       const activeId = get().activePlaylistId === id ? null : get().activePlaylistId;
       set({ playlists: updated, activePlaylistId: activeId });
       writeToStorage(STORAGE_PLAYLISTS, updated);
+
+      try {
+        await deleteUserPlaylistApi(id);
+      } catch (_) {}
     },
 
     /**
      * Add track to playlist (prevents duplicates)
      */
-    addTrackToPlaylist: (playlistId, trackId) => {
+    addTrackToPlaylist: async (playlistId, trackId) => {
       if (!trackId) return;
       const updated = get().playlists.map((pl) => {
         if (pl.id !== playlistId) return pl;
@@ -144,12 +197,16 @@ export const useLibraryStore = create((set, get) => {
       });
       set({ playlists: updated });
       writeToStorage(STORAGE_PLAYLISTS, updated);
+
+      try {
+        await addTrackToUserPlaylistApi(playlistId, trackId);
+      } catch (_) {}
     },
 
     /**
      * Remove track from playlist
      */
-    removeTrackFromPlaylist: (playlistId, trackId) => {
+    removeTrackFromPlaylist: async (playlistId, trackId) => {
       const updated = get().playlists.map((pl) => {
         if (pl.id !== playlistId) return pl;
         return {
@@ -160,12 +217,16 @@ export const useLibraryStore = create((set, get) => {
       });
       set({ playlists: updated });
       writeToStorage(STORAGE_PLAYLISTS, updated);
+
+      try {
+        await removeTrackFromUserPlaylistApi(playlistId, trackId);
+      } catch (_) {}
     },
 
     /**
      * Move track up or down inside playlist
      */
-    reorderPlaylistTracks: (playlistId, fromIndex, toIndex) => {
+    reorderPlaylistTracks: async (playlistId, fromIndex, toIndex) => {
       const updated = get().playlists.map((pl) => {
         if (pl.id !== playlistId) return pl;
         const newTrackIds = [...pl.trackIds];
@@ -182,6 +243,10 @@ export const useLibraryStore = create((set, get) => {
       });
       set({ playlists: updated });
       writeToStorage(STORAGE_PLAYLISTS, updated);
+
+      try {
+        await reorderUserPlaylistTracksApi(playlistId, fromIndex, toIndex);
+      } catch (_) {}
     },
 
     /**
@@ -199,13 +264,21 @@ export const useLibraryStore = create((set, get) => {
     // Saved Vibes (out of 15 canonical vibes)
     // ──────────────────────────────────────────────
 
-    toggleSaveVibe: (vibeId) => {
+    toggleSaveVibe: async (vibeId) => {
       if (!vibeId) return;
       const current = get().savedVibeIds;
       const isSaved = current.includes(vibeId);
       const updated = isSaved ? current.filter((id) => id !== vibeId) : [...current, vibeId];
       set({ savedVibeIds: updated });
       writeToStorage(STORAGE_SAVED_VIBES, updated);
+
+      try {
+        if (isSaved) {
+          await unsaveVibeApi(vibeId);
+        } else {
+          await saveVibeApi(vibeId);
+        }
+      } catch (_) {}
     },
 
     isVibeSaved: (vibeId) => {

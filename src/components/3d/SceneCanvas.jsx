@@ -4,6 +4,7 @@ import CameraRig from './CameraRig';
 import Environment from './Environment';
 import SceneManager from './SceneManager';
 import AudioReactiveBridge from './AudioReactiveBridge';
+import ErrorBoundary from '../common/ErrorBoundary';
 
 // Detect mobile once at module init — used to scale GPU workload appropriately.
 // Mobile screens are high-DPR so MSAA adds cost without visible benefit.
@@ -20,6 +21,7 @@ const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
  * 3. Performance-first:
  *    - Desktop: DPR clamped to [1, 1.5] with MSAA antialiasing.
  *    - Mobile: DPR clamped to [1, 1.2] with antialiasing disabled to reduce GPU load.
+ * 4. Resilient: Protected by ErrorBoundary & WebGL context-loss recovery.
  */
 export default function SceneCanvas() {
   useEffect(() => {
@@ -34,23 +36,45 @@ export default function SceneCanvas() {
       className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none"
       aria-hidden="true"
     >
-      <Canvas
-        camera={{ position: [0, 0, 5], fov: 50, near: 0.1, far: 50 }}
-        dpr={isMobile ? [1, 1.2] : [1, 1.5]}
-        gl={{
-          antialias: !isMobile,
-          alpha: true,
-          powerPreference: 'high-performance',
-        }}
-        className="w-full h-full pointer-events-none"
-      >
-        <Suspense fallback={null}>
-          <AudioReactiveBridge />
-          <CameraRig basePosition={[0, 0, 5]} />
-          <Environment />
-          <SceneManager />
-        </Suspense>
-      </Canvas>
+      <ErrorBoundary fallback={<div className="fixed inset-0 pointer-events-none" />}>
+        <Canvas
+          camera={{ position: [0, 0, 5], fov: 50, near: 0.1, far: 50 }}
+          dpr={isMobile ? [1, 1.2] : [1, 1.5]}
+          gl={{
+            antialias: !isMobile,
+            alpha: true,
+            powerPreference: 'high-performance',
+          }}
+          onCreated={({ gl }) => {
+            const dom = gl?.domElement;
+            if (dom) {
+              dom.addEventListener(
+                'webglcontextlost',
+                (e) => {
+                  e.preventDefault();
+                  console.warn('[Mimicu 3D] WebGL context lost. Attempting recovery...');
+                },
+                false
+              );
+              dom.addEventListener(
+                'webglcontextrestored',
+                () => {
+                  console.log('[Mimicu 3D] WebGL context successfully restored.');
+                },
+                false
+              );
+            }
+          }}
+          className="w-full h-full pointer-events-none"
+        >
+          <Suspense fallback={null}>
+            <AudioReactiveBridge />
+            <CameraRig basePosition={[0, 0, 5]} />
+            <Environment />
+            <SceneManager />
+          </Suspense>
+        </Canvas>
+      </ErrorBoundary>
     </div>
   );
 }
