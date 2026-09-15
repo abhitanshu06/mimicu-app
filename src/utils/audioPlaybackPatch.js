@@ -3,9 +3,11 @@ import { audioEngine } from './audioEngine.js';
 /**
  * Stable playback coordinator for Mimicu.
  *
- * The player must have deterministic Play/Pause/Next behavior. Every async
- * playback operation gets a generation token; an older operation can never
- * restart playback after a newer Pause/Next action.
+ * Every async playback operation receives a generation token so an old
+ * Play/Load request cannot resurrect playback after Pause/Next.
+ * During the frontend/demo stage, prefer the track's direct audioUrl
+ * (passed as fallbackUrl by audioStore) instead of waiting for the backend
+ * streaming endpoint to fail first.
  */
 
 if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybackPatch) {
@@ -20,11 +22,17 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
     element.volume = audioEngine.isMuted ? 0 : audioEngine.volume;
 
     element.addEventListener('timeupdate', () => {
-      audioEngine.onTimeUpdateCallback?.(element.currentTime, Number.isFinite(element.duration) ? element.duration : 0);
+      audioEngine.onTimeUpdateCallback?.(
+        element.currentTime,
+        Number.isFinite(element.duration) ? element.duration : 0,
+      );
     });
 
     element.addEventListener('loadedmetadata', () => {
-      audioEngine.onTimeUpdateCallback?.(element.currentTime, Number.isFinite(element.duration) ? element.duration : 0);
+      audioEngine.onTimeUpdateCallback?.(
+        element.currentTime,
+        Number.isFinite(element.duration) ? element.duration : 0,
+      );
     });
 
     element.addEventListener('ended', () => {
@@ -34,29 +42,30 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
 
     element.addEventListener('waiting', () => audioEngine.onLoadingCallback?.(true));
     element.addEventListener('canplay', () => audioEngine.onLoadingCallback?.(false));
+
     element.addEventListener('playing', () => {
       audioEngine.isPlaying = true;
       audioEngine.onLoadingCallback?.(false);
     });
+
     element.addEventListener('pause', () => {
       audioEngine.isPlaying = false;
     });
 
     element.addEventListener('error', () => {
-      // Ignore errors from a request that has already been invalidated.
       if (requestId !== audioEngine.__playRequestId) return;
       audioEngine.isPlaying = false;
       audioEngine.onLoadingCallback?.(false);
-      const err = element.error || new Error('Audio source unavailable');
-      console.warn('[AudioEngine] Media error:', err);
-      audioEngine.onErrorCallback?.(err);
+      const error = element.error || new Error('Audio source unavailable');
+      console.warn('[AudioEngine] Media error:', error);
+      audioEngine.onErrorCallback?.(error);
     });
 
     return element;
   };
 
   // Replace the constructor-created element before Web Audio creates its
-  // MediaElementSourceNode, removing the legacy fallback/race listeners.
+  // MediaElementSourceNode, removing the legacy race-prone listeners.
   audioEngine.audioElement = createCleanAudioElement();
   audioEngine.isPlaying = false;
   audioEngine.currentUrl = null;
@@ -67,14 +76,18 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
     const token = ++requestId;
     audioEngine.__playRequestId = token;
 
-    if (!url) return false;
+    // IMPORTANT: the direct track audioUrl is supplied as fallbackUrl by the
+    // current audioStore. Use it first so there is no backend 404 wait before
+    // a demo song starts playing.
+    const resolvedUrl = fallbackUrl || url;
+    if (!resolvedUrl) return false;
 
     const element = audioEngine.audioElement;
 
-    // Stop the old source immediately and invalidate its play promise.
+    // Synchronously stop whatever was playing before changing sources.
     element.pause();
-    audioEngine.currentUrl = url;
-    audioEngine.fallbackUrl = fallbackUrl || null;
+    audioEngine.currentUrl = resolvedUrl;
+    audioEngine.fallbackUrl = null;
     audioEngine.synthDuration = fallbackDuration || 200;
     audioEngine.isPlaying = false;
     audioEngine.onLoadingCallback?.(true);
@@ -83,12 +96,12 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
       await audioEngine.ensureContextActive();
       if (token !== requestId) return false;
 
-      // load() aborts stale media operations. AbortError here is expected
-      // control flow and must NEVER trigger procedural/synthetic playback.
+      // load() aborts stale media operations. AbortError from an invalidated
+      // request is expected control flow and must never start a fake track.
       element.pause();
       element.removeAttribute('src');
       element.load();
-      element.src = url;
+      element.src = resolvedUrl;
       element.load();
       element.currentTime = 0;
       element.volume = audioEngine.isMuted ? 0 : audioEngine.volume;
@@ -97,23 +110,6 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
         await element.play();
       } catch (error) {
         if (token !== requestId || error?.name === 'AbortError') return false;
-
-        // Optional fallback URL is only for a genuine source failure. Never
-        // use the procedural generator because it hides broken audio sources.
-        if (fallbackUrl && fallbackUrl !== url) {
-          element.pause();
-          element.src = fallbackUrl;
-          element.load();
-          element.currentTime = 0;
-          await element.play();
-          if (token !== requestId) {
-            element.pause();
-            return false;
-          }
-          audioEngine.isPlaying = true;
-          audioEngine.onLoadingCallback?.(false);
-          return true;
-        }
 
         audioEngine.isPlaying = false;
         audioEngine.onLoadingCallback?.(false);
@@ -158,7 +154,6 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
       audioEngine.isPlaying = !element.paused;
       return audioEngine.isPlaying;
     } catch (error) {
-      // AbortError simply means Pause/Next invalidated this play request.
       if (token !== requestId || error?.name === 'AbortError') return false;
       audioEngine.isPlaying = false;
       audioEngine.onErrorCallback?.(error);
@@ -167,7 +162,7 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
   };
 
   audioEngine.pause = () => {
-    // Synchronously invalidate all pending async play/load requests.
+    // Invalidate all pending async play/load requests immediately.
     requestId += 1;
     audioEngine.__playRequestId = requestId;
     audioEngine.fallbackUrl = null;
