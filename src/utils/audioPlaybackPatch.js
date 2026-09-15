@@ -3,10 +3,9 @@ import { audioEngine } from './audioEngine.js';
 /**
  * Stable playback coordinator for Mimicu.
  *
- * The original engine has async play/load operations. A quick pause/next
- * during those awaits could let an older promise resume and start playback
- * again. This patch gives every playback request a generation token so stale
- * async operations are ignored.
+ * The player must have deterministic Play/Pause/Next behavior. Every async
+ * playback operation gets a generation token; an older operation can never
+ * restart playback after a newer Pause/Next action.
  */
 
 if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybackPatch) {
@@ -21,123 +20,120 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
     element.volume = audioEngine.isMuted ? 0 : audioEngine.volume;
 
     element.addEventListener('timeupdate', () => {
-      if (audioEngine.onTimeUpdateCallback) {
-        audioEngine.onTimeUpdateCallback(
-          element.currentTime,
-          element.duration || 0,
-        );
-      }
+      audioEngine.onTimeUpdateCallback?.(element.currentTime, Number.isFinite(element.duration) ? element.duration : 0);
+    });
+
+    element.addEventListener('loadedmetadata', () => {
+      audioEngine.onTimeUpdateCallback?.(element.currentTime, Number.isFinite(element.duration) ? element.duration : 0);
     });
 
     element.addEventListener('ended', () => {
       audioEngine.isPlaying = false;
-      if (audioEngine.onEndedCallback) audioEngine.onEndedCallback();
+      audioEngine.onEndedCallback?.();
     });
 
-    element.addEventListener('waiting', () => {
-      if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(true);
-    });
-
+    element.addEventListener('waiting', () => audioEngine.onLoadingCallback?.(true));
+    element.addEventListener('canplay', () => audioEngine.onLoadingCallback?.(false));
     element.addEventListener('playing', () => {
       audioEngine.isPlaying = true;
-      if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(false);
+      audioEngine.onLoadingCallback?.(false);
     });
-
     element.addEventListener('pause', () => {
-      if (!element.ended) audioEngine.isPlaying = false;
+      audioEngine.isPlaying = false;
     });
 
-    element.addEventListener('error', (event) => {
-      // Ignore errors caused by an already-invalidated request.
+    element.addEventListener('error', () => {
+      // Ignore errors from a request that has already been invalidated.
       if (requestId !== audioEngine.__playRequestId) return;
-      if (audioEngine.__errorHandledForRequest === requestId) return;
-
       audioEngine.isPlaying = false;
-      if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(false);
-      if (audioEngine.onErrorCallback) {
-        audioEngine.onErrorCallback(event);
-      }
+      audioEngine.onLoadingCallback?.(false);
+      const err = element.error || new Error('Audio source unavailable');
+      console.warn('[AudioEngine] Media error:', err);
+      audioEngine.onErrorCallback?.(err);
     });
 
     return element;
   };
 
   // Replace the constructor-created element before Web Audio creates its
-  // MediaElementSourceNode, removing the legacy race-prone listeners.
+  // MediaElementSourceNode, removing the legacy fallback/race listeners.
   audioEngine.audioElement = createCleanAudioElement();
   audioEngine.isPlaying = false;
   audioEngine.currentUrl = null;
   audioEngine.fallbackUrl = null;
   audioEngine.__playRequestId = 0;
-  audioEngine.__errorHandledForRequest = 0;
 
   audioEngine.loadAndPlay = async (url, fallbackDuration = 200, fallbackUrl = null) => {
     const token = ++requestId;
     audioEngine.__playRequestId = token;
-    audioEngine.__errorHandledForRequest = 0;
 
     if (!url) return false;
 
     const element = audioEngine.audioElement;
 
-    // Invalidate/stop anything currently active immediately.
+    // Stop the old source immediately and invalidate its play promise.
     element.pause();
-    audioEngine.stopProceduralFallback();
     audioEngine.currentUrl = url;
-    audioEngine.fallbackUrl = null;
+    audioEngine.fallbackUrl = fallbackUrl || null;
     audioEngine.synthDuration = fallbackDuration || 200;
-
-    if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(true);
+    audioEngine.isPlaying = false;
+    audioEngine.onLoadingCallback?.(true);
 
     try {
       await audioEngine.ensureContextActive();
-
       if (token !== requestId) return false;
 
+      // load() aborts stale media operations. AbortError here is expected
+      // control flow and must NEVER trigger procedural/synthetic playback.
       element.pause();
-      element.src = url;
-      element.currentTime = 0;
+      element.removeAttribute('src');
       element.load();
+      element.src = url;
+      element.load();
+      element.currentTime = 0;
+      element.volume = audioEngine.isMuted ? 0 : audioEngine.volume;
 
-      await element.play();
+      try {
+        await element.play();
+      } catch (error) {
+        if (token !== requestId || error?.name === 'AbortError') return false;
+
+        // Optional fallback URL is only for a genuine source failure. Never
+        // use the procedural generator because it hides broken audio sources.
+        if (fallbackUrl && fallbackUrl !== url) {
+          element.pause();
+          element.src = fallbackUrl;
+          element.load();
+          element.currentTime = 0;
+          await element.play();
+          if (token !== requestId) {
+            element.pause();
+            return false;
+          }
+          audioEngine.isPlaying = true;
+          audioEngine.onLoadingCallback?.(false);
+          return true;
+        }
+
+        audioEngine.isPlaying = false;
+        audioEngine.onLoadingCallback?.(false);
+        audioEngine.onErrorCallback?.(error);
+        return false;
+      }
 
       if (token !== requestId) {
         element.pause();
         return false;
       }
 
-      audioEngine.isPlaying = true;
-      if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(false);
-      return true;
-    } catch (primaryError) {
-      if (token !== requestId) return false;
-
-      if (fallbackUrl && fallbackUrl !== url) {
-        try {
-          element.pause();
-          element.src = fallbackUrl;
-          element.currentTime = 0;
-          element.load();
-
-          await element.play();
-
-          if (token !== requestId) {
-            element.pause();
-            return false;
-          }
-
-          audioEngine.isPlaying = true;
-          if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(false);
-          return true;
-        } catch (fallbackError) {
-          console.warn('[AudioEngine] Fallback URL failed:', fallbackError);
-        }
-      }
-
-      audioEngine.__errorHandledForRequest = token;
-      if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(false);
-      console.warn('[AudioEngine] Playback failed:', primaryError);
-      audioEngine.startProceduralFallback();
+      audioEngine.isPlaying = !element.paused;
+      audioEngine.onLoadingCallback?.(false);
+      return audioEngine.isPlaying;
+    } catch (error) {
+      if (token !== requestId || error?.name === 'AbortError') return false;
+      audioEngine.isPlaying = false;
+      audioEngine.onLoadingCallback?.(false);
+      audioEngine.onErrorCallback?.(error);
       return false;
     }
   };
@@ -145,20 +141,13 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
   audioEngine.play = async () => {
     const token = ++requestId;
     audioEngine.__playRequestId = token;
-    audioEngine.__errorHandledForRequest = 0;
+
+    const element = audioEngine.audioElement;
+    if (!element || !element.src) return false;
 
     try {
       await audioEngine.ensureContextActive();
       if (token !== requestId) return false;
-
-      if (audioEngine.synthActive) {
-        audioEngine.resumeProceduralFallback();
-        audioEngine.isPlaying = true;
-        return true;
-      }
-
-      const element = audioEngine.audioElement;
-      if (!element || !element.src) return false;
 
       await element.play();
       if (token !== requestId) {
@@ -166,33 +155,28 @@ if (typeof window !== 'undefined' && audioEngine && !audioEngine.__stablePlaybac
         return false;
       }
 
-      audioEngine.isPlaying = true;
-      return true;
+      audioEngine.isPlaying = !element.paused;
+      return audioEngine.isPlaying;
     } catch (error) {
-      if (token !== requestId) return false;
-      console.warn('[AudioEngine] Resume error:', error);
-      audioEngine.startProceduralFallback();
+      // AbortError simply means Pause/Next invalidated this play request.
+      if (token !== requestId || error?.name === 'AbortError') return false;
+      audioEngine.isPlaying = false;
+      audioEngine.onErrorCallback?.(error);
       return false;
     }
   };
 
   audioEngine.pause = () => {
-    // Invalidate every pending async play/load immediately.
+    // Synchronously invalidate all pending async play/load requests.
     requestId += 1;
     audioEngine.__playRequestId = requestId;
-    audioEngine.__errorHandledForRequest = requestId;
     audioEngine.fallbackUrl = null;
-
-    if (audioEngine.synthActive) {
-      audioEngine.pauseProceduralFallback();
-    }
+    audioEngine.isPlaying = false;
+    audioEngine.onLoadingCallback?.(false);
 
     if (audioEngine.audioElement) {
       audioEngine.audioElement.pause();
     }
-
-    audioEngine.isPlaying = false;
-    if (audioEngine.onLoadingCallback) audioEngine.onLoadingCallback(false);
   };
 }
 
