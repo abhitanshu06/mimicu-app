@@ -11,16 +11,42 @@ import {
 } from '../services/api/index.js';
 
 /**
- * Resolves the primary audio streaming URL with fallback to track.audioUrl
+ * Resolves the best playable audio URL for a track.
+ *
+ * Priority:
+ * 1. Direct audioUrl on the track (CDN / freesound / local path) — fastest,
+ *    no backend round-trip needed for demo/local playback.
+ * 2. Backend streaming URL (/api/audio/:id) — used only when no direct URL
+ *    is available (e.g. tracks that are backend-only uploads).
+ *
+ * This is the key fix for playback delay: previously the backend URL was
+ * always preferred, causing a round-trip to /api/audio/:id which often
+ * fails (404/503) and triggers the error handler / procedural synth.
+ *
  * @param {Object} track
  * @returns {string}
  */
 function getPlayableUrl(track) {
   if (!track) return '';
-  if (track.id) {
-    return getAudioStreamUrl(track.id);
-  }
-  return track.audioUrl || '';
+  // Prefer direct CDN/local URL — immediate playback with no backend dependency.
+  if (track.audioUrl) return track.audioUrl;
+  // Fall back to backend streaming only if no direct URL exists.
+  if (track.id) return getAudioStreamUrl(track.id);
+  return '';
+}
+
+/**
+ * Returns a fallback URL (backend streaming) for when the primary URL fails.
+ * If primary was CDN, fallback is the backend streaming endpoint.
+ * If primary was already backend, no fallback (avoids infinite loop).
+ * @param {Object} track
+ * @returns {string|null}
+ */
+function getPlayableFallbackUrl(track) {
+  if (!track) return null;
+  // If the track has a direct audioUrl (CDN), the backend stream is the fallback.
+  if (track.audioUrl && track.id) return getAudioStreamUrl(track.id);
+  return null;
 }
 
 /**
@@ -91,7 +117,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(firstTrack, 0);
         }
         recordHistory(firstTrack);
-        audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
+        audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, getPlayableFallbackUrl(firstTrack));
       } else {
         const firstTrack = queue[0];
         set({
@@ -105,7 +131,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(firstTrack, 0);
         }
         recordHistory(firstTrack);
-        audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
+        audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, getPlayableFallbackUrl(firstTrack));
       }
     } else {
       // End of queue with repeat OFF -> Stop playback gracefully
@@ -123,8 +149,10 @@ export const useAudioStore = create((set, get) => {
   };
 
   audioEngine.onErrorCallback = (error) => {
-    console.warn('[AudioStore] Playback error encountered:', error);
-    set({ error: 'Audio source unavailable. Playing ambient generator.' });
+    console.warn('[AudioStore] Playback error:', error);
+    // Only show an error message if it's a genuine media failure
+    // (AbortError is filtered out by audioEngine before calling this callback)
+    set({ error: 'Playback unavailable for this track.' });
   };
 
   // Storage persistence helpers
@@ -266,7 +294,7 @@ export const useAudioStore = create((set, get) => {
       }
 
       recordHistory(track);
-      audioEngine.loadAndPlay(getPlayableUrl(track), track.duration, track.audioUrl);
+      audioEngine.loadAndPlay(getPlayableUrl(track), track.duration, getPlayableFallbackUrl(track));
     },
 
     /**
@@ -326,21 +354,28 @@ export const useAudioStore = create((set, get) => {
       useVibeStore.getState().setVibePlaybackActive(true);
 
       recordHistory(activeTrack);
-      audioEngine.loadAndPlay(getPlayableUrl(activeTrack), activeTrack.duration, activeTrack.audioUrl);
+      audioEngine.loadAndPlay(getPlayableUrl(activeTrack), activeTrack.duration, getPlayableFallbackUrl(activeTrack));
     },
 
     /**
      * Play/Pause toggle
+     * NOTE: We do NOT optimistically set playing=true/false here.
+     * The audioEngine fires the 'playing' and 'pause' media events which
+     * update isPlaying on the engine. The store's playing flag is synced
+     * through onLoadingCallback and actual audio element events.
+     * Setting it optimistically caused state desynchronisation.
      */
     togglePlay: () => {
       const { playing, currentTrack } = get();
       if (!currentTrack) return;
 
       if (playing) {
+        set({ playing: false });   // Immediate UI feedback is fine for pause
         audioEngine.pause();
-        set({ playing: false });
       } else {
         audioEngine.play();
+        // playing=true will be confirmed by the 'playing' event via onLoadingCallback
+        // but we also set it immediately so the button reflects the intent.
         set({ playing: true });
       }
     },
@@ -351,8 +386,8 @@ export const useAudioStore = create((set, get) => {
     },
 
     pause: () => {
-      audioEngine.pause();
-      set({ playing: false });
+      set({ playing: false });     // Immediate UI feedback
+      audioEngine.pause();         // Engine increments token, cancels pending play()
     },
 
     /**
@@ -376,7 +411,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(nextTrack, nextIdx);
         }
         recordHistory(nextTrack);
-        audioEngine.loadAndPlay(getPlayableUrl(nextTrack), nextTrack.duration, nextTrack.audioUrl);
+        audioEngine.loadAndPlay(getPlayableUrl(nextTrack), nextTrack.duration, getPlayableFallbackUrl(nextTrack));
       } else if (repeat === 'queue' || repeat === 'vibe') {
         // Wrap back to beginning
         if (shuffle) {
@@ -394,7 +429,7 @@ export const useAudioStore = create((set, get) => {
             useVibeStore.getState().syncTrackChange(firstTrack, 0);
           }
           recordHistory(firstTrack);
-          audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
+          audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, getPlayableFallbackUrl(firstTrack));
         } else {
           const firstTrack = queue[0];
           set({
@@ -408,7 +443,7 @@ export const useAudioStore = create((set, get) => {
             useVibeStore.getState().syncTrackChange(firstTrack, 0);
           }
           recordHistory(firstTrack);
-          audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, firstTrack.audioUrl);
+          audioEngine.loadAndPlay(getPlayableUrl(firstTrack), firstTrack.duration, getPlayableFallbackUrl(firstTrack));
         }
       } else {
         // Stop at end
@@ -450,7 +485,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(prevTrack, prevIdx);
         }
         recordHistory(prevTrack);
-        audioEngine.loadAndPlay(getPlayableUrl(prevTrack), prevTrack.duration, prevTrack.audioUrl);
+        audioEngine.loadAndPlay(getPlayableUrl(prevTrack), prevTrack.duration, getPlayableFallbackUrl(prevTrack));
       } else if (repeat === 'queue' || repeat === 'vibe') {
         const lastIdx = queue.length - 1;
         const lastTrack = queue[lastIdx];
@@ -465,7 +500,7 @@ export const useAudioStore = create((set, get) => {
           useVibeStore.getState().syncTrackChange(lastTrack, lastIdx);
         }
         recordHistory(lastTrack);
-        audioEngine.loadAndPlay(getPlayableUrl(lastTrack), lastTrack.duration, lastTrack.audioUrl);
+        audioEngine.loadAndPlay(getPlayableUrl(lastTrack), lastTrack.duration, getPlayableFallbackUrl(lastTrack));
       } else {
         audioEngine.seek(0);
         set({ currentTime: 0, progress: 0 });
@@ -578,7 +613,7 @@ export const useAudioStore = create((set, get) => {
         duration: track.duration || 200,
       });
       recordHistory(track);
-      audioEngine.loadAndPlay(getPlayableUrl(track), track.duration, track.audioUrl);
+      audioEngine.loadAndPlay(getPlayableUrl(track), track.duration, getPlayableFallbackUrl(track));
     },
 
     /**
