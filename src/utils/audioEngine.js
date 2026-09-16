@@ -216,6 +216,10 @@ class AudioEngine {
     }
   }
 
+  async ensureContextActive() {
+    return this._ensureContextActive();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // PRIMARY PLAYBACK API
   // ═══════════════════════════════════════════════════════════════════════════
@@ -427,7 +431,10 @@ class AudioEngine {
 
     if (this.audioElement && !isNaN(seconds)) {
       try {
-        this.audioElement.currentTime = seconds;
+        const maxDur = Number.isFinite(this.audioElement.duration) && this.audioElement.duration > 0
+          ? this.audioElement.duration
+          : Infinity;
+        this.audioElement.currentTime = Math.max(0, Math.min(seconds, maxDur));
       } catch (e) {
         console.warn('[AudioEngine] Seek error:', e);
       }

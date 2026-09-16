@@ -608,6 +608,7 @@ export const useAudioStore = create((set, get) => {
         originalQueue: [...newQueue],
         queueIndex: startIndex,
         currentTrack: track,
+        playing: true,
         progress: 0,
         currentTime: 0,
         duration: track.duration || 200,
